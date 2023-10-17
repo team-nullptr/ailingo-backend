@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ailingo/chat"
 	"crypto/tls"
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
@@ -14,7 +15,11 @@ func main() {
 		log.Fatalf("failed to load configuration from .env file\n")
 	}
 
+	sentenceGenerator := chat.NewSentenceGenerator(http.DefaultClient)
+	chatController := chat.NewController(sentenceGenerator)
+
 	r := chi.NewRouter()
+	r.Get("/generation/sentence", chatController.GenerateSentence)
 
 	srv := http.Server{
 		Addr:    os.Getenv("SERVER_ADDR"),

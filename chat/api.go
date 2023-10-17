@@ -6,8 +6,8 @@ type Message struct {
 	Role    string `json:"role"`
 }
 
-// CompletionSettings represents payload triggering a chat completion.
-type CompletionSettings struct {
+// Chat represents completion chat settings.
+type Chat struct {
 	Model     string    `json:"model"`
 	Messages  []Message `json:"messages"`
 	MaxTokens uint      `json:"max_tokens"`
