@@ -23,6 +23,7 @@ func (c *Controller) GenerateSentence(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&word); err != nil {
 		apiutil.Err(w, http.StatusBadRequest, "expected word payload")
+		return
 	}
 
 	result, err := c.sg.GenerateSentence(word)

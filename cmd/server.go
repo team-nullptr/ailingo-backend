@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
 	"log/slog"
 	"net/http"
@@ -24,9 +25,15 @@ func main() {
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:5173"}, // Use this to allow specific origin hosts
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+		AllowCredentials: true,
+	}))
 
 	// TODO: Use load balancer to
-	r.Get("/service/sentence", chatController.GenerateSentence)
+	r.Post("/service/sentence", chatController.GenerateSentence)
 
 	srv := http.Server{
 		Addr:    os.Getenv("SERVER_ADDR"),
