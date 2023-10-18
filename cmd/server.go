@@ -26,7 +26,7 @@ func main() {
 	r.Use(middleware.Logger)
 
 	// TODO: Use load balancer to
-	r.Get("/generation/sentence", chatController.GenerateSentence)
+	r.Get("/service/sentence", chatController.GenerateSentence)
 
 	srv := http.Server{
 		Addr:    os.Getenv("SERVER_ADDR"),
