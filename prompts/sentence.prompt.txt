@@ -1,3 +1,0 @@
-You will be provided with {{PhraseLang}} phrase and its {{MeaningLang}} meaning. Write a sentence in {{PhraseLang}} using the phrase in its {{MeaningLang}} meaning which can be used for students to understand the phrase better. Do not add any labels, notes or text formatting to your response.
-phrase: {{Phrase}}
-meaning: {{Meaning}}

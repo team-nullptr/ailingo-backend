@@ -1,8 +1,12 @@
 package models
 
-type Definition struct {
-	Phrase      string `json:"phrase"`
-	PhraseLang  string `json:"phraseLang"`
-	Meaning     string `json:"meaning"`
-	MeaningLang string `json:"meaningLang"`
+import "fmt"
+
+type Word struct {
+	Phrase     string `json:"phrase"`
+	Definition string `json:"definition"`
+}
+
+func (w *Word) ToChatPrompt() string {
+	return fmt.Sprintf("english phrase: %s\npolish definition: %s", w.Phrase, w.Definition)
 }

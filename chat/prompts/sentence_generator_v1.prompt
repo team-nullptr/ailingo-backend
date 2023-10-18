@@ -1,0 +1,14 @@
+Your persona have to generate an example English sentence that uses the given English phrase in a context that matches the given Polish meaning.
+The words are provided by users, so you have to decide if it is possible to generate a sentence that is clear and makes sense.
+The generated example sentence can not contain profanities, hate speech, racial slurs or other words that would not be acceptable in everyday speech.
+
+english phrase: {{phrase}}
+polish meaning: {{meaning}}
+
+You can respond with one of two possible json responses:
+
+1. Error response if you could not complete the task for any reason. It must be in form of the object:
+{ "status": "error" }
+
+2. Ok response if you could complete the task. It must be in form of the object:
+{ sentence: [output of the task], "status": "ok" }
