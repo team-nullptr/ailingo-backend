@@ -2,6 +2,7 @@ package deepl
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,7 +23,7 @@ func NewClient(httpClient *http.Client, token string) *Client {
 	}
 }
 
-func (c *Client) Translate(text string) (string, error) {
+func (c *Client) Translate(ctx context.Context, text string) (string, error) {
 	body, err := json.Marshal(DeeplTranslationRequest{
 		Text:       []string{text},
 		TargetLang: "PL",
@@ -31,7 +32,7 @@ func (c *Client) Translate(text string) (string, error) {
 		return "", fmt.Errorf("invalid translation request: %w", err)
 	}
 
-	req, err := c.request(http.MethodPost, "/translate", bytes.NewReader(body))
+	req, err := c.request(ctx, http.MethodPost, "/translate", bytes.NewReader(body))
 	if err != nil {
 		return "", err
 	}
@@ -54,8 +55,8 @@ func (c *Client) Translate(text string) (string, error) {
 }
 
 // Request makes a request to DeepL's free tier api.
-func (c *Client) request(method string, endpoint string, body io.Reader) (*http.Request, error) {
-	req, err := http.NewRequest(method, deeplApiBase+endpoint, body)
+func (c *Client) request(ctx context.Context, method string, endpoint string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, method, deeplApiBase+endpoint, body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare the request: %w", err)
 	}
