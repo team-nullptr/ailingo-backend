@@ -26,12 +26,12 @@ type Completion struct {
 	Choices []Choice `json:"choices"`
 }
 
-// moderationRequest represents a json payload provided to openai moderation api.
+// moderationRequest represents a payload provided to openai moderation API.
 type moderationRequest struct {
 	Input string `json:"input"`
 }
 
-// moderationResult represents a json body returned by openai moderation api.
+// moderationResult represents a body returned by openai moderation API.
 type moderationResult struct {
 	Results []struct {
 		Flagged        bool               `json:"flagged"`

@@ -12,35 +12,36 @@ import (
 	"ailingo/pkg/apiutil"
 )
 
+// Controller exposes handlers for GPT API.
 type Controller struct {
-	ss *SentenceService
+	service *Service
 }
 
-func NewController(ss *SentenceService) *Controller {
+func NewController(s *Service) *Controller {
 	return &Controller{
-		ss: ss,
+		service: s,
 	}
 }
 
+// Attach attaches controller to the given mux.
 func (c *Controller) Attach(m *chi.Mux, path string) {
 	m.Route(path, func(r chi.Router) {
 		r.Post("/sentence", c.GenerateSentence)
 	})
 }
 
-// GenerateSentence is an endpoint handler that generates example sentences for given word.
+// GenerateSentence is an endpoint handler for generating a sentence containing submitted word.
 func (c *Controller) GenerateSentence(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second*30)
 	defer cancel()
 
 	var word models.Word
-
 	if err := json.NewDecoder(r.Body).Decode(&word); err != nil {
 		apiutil.Err(w, http.StatusBadRequest, err)
 		return
 	}
 
-	result, err := c.ss.GenerateSentence(ctx, word)
+	result, err := c.service.GenerateSentence(ctx, word)
 	if err != nil {
 		apiutil.Err(w, http.StatusInternalServerError, err)
 		return

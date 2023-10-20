@@ -23,6 +23,7 @@ func NewClient(httpClient *http.Client, token string) *Client {
 	}
 }
 
+// Translate translates given text into english using DeepL API.
 func (c *Client) Translate(ctx context.Context, text string) (string, error) {
 	body, err := json.Marshal(TranslationRequest{
 		Text:       []string{text},
@@ -54,7 +55,7 @@ func (c *Client) Translate(ctx context.Context, text string) (string, error) {
 	return result.Translations[0].Text, nil
 }
 
-// Request makes a request to DeepL's free tier api.
+// request assembles a base request to DeepL's free tier api.
 func (c *Client) request(ctx context.Context, method string, endpoint string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, method, deeplApiBase+endpoint, body)
 	if err != nil {

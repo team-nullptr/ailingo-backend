@@ -12,6 +12,7 @@ import (
 	"ailingo/pkg/deepl"
 )
 
+// Controller exposes handlers for translation API.
 type Controller struct {
 	deeplClient *deepl.Client
 }
@@ -22,12 +23,14 @@ func NewController(deeplClient *deepl.Client) *Controller {
 	}
 }
 
+// Attach attaches controller to the given mux.
 func (c *Controller) Attach(m *chi.Mux, path string) {
 	m.Route(path, func(r chi.Router) {
 		r.Post("/", c.Translate)
 	})
 }
 
+// Translate is an endpoint handler for translating words using DeepL.
 func (c *Controller) Translate(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second*30)
 	defer cancel()

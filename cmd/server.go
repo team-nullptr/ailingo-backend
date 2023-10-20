@@ -20,8 +20,8 @@ import (
 	"ailingo/pkg/openai"
 )
 
-// TODO: We need a structured logger, look at log/slog package
-// TODO: Use load balancer to
+// TODO: We need a structured logger, look at log/slog package.
+// TODO: Should we consider implementing load balancer?
 
 func initRouter(cfg *config.Config) (*chi.Mux, error) {
 	_, err := sql.Open("mysql", cfg.DSN)
@@ -29,9 +29,9 @@ func initRouter(cfg *config.Config) (*chi.Mux, error) {
 		return nil, fmt.Errorf("failed to connect to db: %w", err)
 	}
 
-	openaiClient := openai.NewChatClient(http.DefaultClient, cfg.OpenaiToken)
-	deeplClient := deepl.NewClient(http.DefaultClient, cfg.DeeplToken)
-	sentenceService := chat.NewSentenceService(openaiClient)
+	openaiClient := openai.NewChatClient(http.DefaultClient, cfg.OpenAIToken)
+	deeplClient := deepl.NewClient(http.DefaultClient, cfg.DeepLToken)
+	chatService := chat.NewService(openaiClient)
 
 	r := chi.NewRouter()
 
@@ -43,7 +43,7 @@ func initRouter(cfg *config.Config) (*chi.Mux, error) {
 		AllowCredentials: true,
 	}))
 
-	chat.NewController(sentenceService).Attach(r, "/gpt")
+	chat.NewController(chatService).Attach(r, "/gpt")
 	translation.NewController(deeplClient).Attach(r, "/translate")
 
 	return r, nil

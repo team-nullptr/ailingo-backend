@@ -29,6 +29,8 @@ var (
 	ErrModeration       = errors.New("prompt flagged")
 )
 
+// RequestCompletion creates a new chat completion with the given chat configuration.
+// User's prompt will be filtered with moderation API. If any of the user messages will be flagged completion will fail with ErrModeration.
 func (cc *ChatClient) RequestCompletion(ctx context.Context, chat CompletionChat) (*Completion, error) {
 	for _, msg := range chat.Messages {
 		if msg.Role == "user" {
@@ -72,7 +74,7 @@ func (cc *ChatClient) RequestCompletion(ctx context.Context, chat CompletionChat
 	return &completion, nil
 }
 
-// moderatePrompt runs OpenAI's moderation service on the give prompt.
+// moderatePrompt runs OpenAI moderations service on the give prompt.
 func (cc *ChatClient) moderatePrompt(ctx context.Context, prompt string) (*moderationResult, error) {
 	body, err := json.Marshal(moderationRequest{
 		Input: prompt,
@@ -100,6 +102,7 @@ func (cc *ChatClient) moderatePrompt(ctx context.Context, prompt string) (*moder
 	return &result, nil
 }
 
+// request assembles a base request to OpenAI API.
 func (cc *ChatClient) request(ctx context.Context, method string, endpoint string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, method, openaiApiBase+endpoint, body)
 	if err != nil {
