@@ -2,8 +2,9 @@ package config
 
 import (
 	"fmt"
-	"github.com/joho/godotenv"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -12,6 +13,7 @@ type Config struct {
 	Addr        string
 	TlsCert     string
 	TlsKey      string
+	DSN         string
 }
 
 func Load() (*Config, error) {
@@ -25,5 +27,6 @@ func Load() (*Config, error) {
 		Addr:        os.Getenv("SERVER_ADDR"),
 		TlsCert:     os.Getenv("TLS_CERT"),
 		TlsKey:      os.Getenv("TLS_KEY"),
+		DSN:         os.Getenv("DSN"),
 	}, nil
 }

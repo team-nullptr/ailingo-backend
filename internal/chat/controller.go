@@ -1,13 +1,15 @@
 package chat
 
 import (
-	"ailingo/internal/models"
-	"ailingo/pkg/apiutil"
 	"context"
 	"encoding/json"
-	"github.com/go-chi/chi/v5"
 	"net/http"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+
+	"ailingo/internal/models"
+	"ailingo/pkg/apiutil"
 )
 
 type Controller struct {

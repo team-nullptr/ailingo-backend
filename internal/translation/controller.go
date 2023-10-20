@@ -1,13 +1,15 @@
 package translation
 
 import (
-	"ailingo/pkg/apiutil"
-	"ailingo/pkg/deepl"
 	"context"
 	"errors"
-	"github.com/go-chi/chi/v5"
 	"net/http"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+
+	"ailingo/pkg/apiutil"
+	"ailingo/pkg/deepl"
 )
 
 type Controller struct {

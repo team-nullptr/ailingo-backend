@@ -1,10 +1,11 @@
 package chat
 
 import (
-	"ailingo/internal/models"
-	"ailingo/pkg/openai"
 	"context"
 	_ "embed"
+
+	"ailingo/internal/models"
+	"ailingo/pkg/openai"
 
 	"encoding/json"
 	"errors"
