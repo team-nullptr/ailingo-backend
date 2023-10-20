@@ -1,6 +1,6 @@
 package deepl
 
-// TranslationRequest represents a deepl translation api request payload.
+// TranslationRequest represents a deepl translation API request payload.
 type TranslationRequest struct {
 	Text       []string `json:"text"`
 	TargetLang string   `json:"target_lang"`
@@ -12,7 +12,7 @@ type Translation struct {
 	Text                   string `json:"text"`
 }
 
-// TranslationResult represents a response from translation api.
+// TranslationResult represents a response from translation API.
 type TranslationResult struct {
 	Translations []Translation `json:"translations"`
 }

@@ -6,7 +6,8 @@ import (
 	"net/http"
 )
 
-// Json returns the given payload. If given payload cannot be marshalled returns 500 error message.
+// Json is an API response helper for returning json responses.
+// If the given payload cannot be marshalled 500 Internal Server Error will be returned.
 func Json(w http.ResponseWriter, status int, payload any) {
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -19,7 +20,7 @@ func Json(w http.ResponseWriter, status int, payload any) {
 	w.Write(body)
 }
 
-// Err returns error response with the given message. If the message is not provided default status text will be used.
+// Err is an API response helper for returning error responses.
 func Err(w http.ResponseWriter, status int, err error) {
 	if err != nil {
 		fmt.Println(err)
