@@ -2,14 +2,15 @@ package main
 
 import (
 	"ailingo/internal/chat"
+	"ailingo/internal/config"
 	"ailingo/internal/translation"
 	"ailingo/pkg/deepl"
 	"ailingo/pkg/openai"
 	"crypto/tls"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/joho/godotenv"
 	"log/slog"
 	"net/http"
 	"os"
@@ -18,15 +19,15 @@ import (
 // TODO: We need a structured logger, look at log/slog package
 // TODO: Use load balancer to
 
-func main() {
-	l := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-
-	if err := godotenv.Load(".env"); err != nil {
-		l.Error("failed to load configuration from .env file\n")
-		os.Exit(1)
-	}
+func initRouter(cfg *config.Config) *chi.Mux {
+	openaiClient := openai.NewChatClient(http.DefaultClient, cfg.OpenaiToken)
+	deeplClient := deepl.NewClient(http.DefaultClient, cfg.DeeplToken)
+	sentenceService := chat.NewSentenceService(openaiClient)
+	chatController := chat.NewController(sentenceService)
+	translationController := translation.NewController(deeplClient)
 
 	r := chi.NewRouter()
+
 	r.Use(middleware.Logger)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:5173"},
@@ -35,15 +36,22 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	openaiClient := openai.NewChatClient(http.DefaultClient, os.Getenv("OPENAI_SECRET"))
-	deeplClient := deepl.NewClient(http.DefaultClient, os.Getenv("DEEPL_SECRET"))
-
-	sentenceService := chat.NewSentenceService(openaiClient)
-	chatController := chat.NewController(sentenceService)
 	chatController.Attach(r, "/gpt")
-
-	translationController := translation.NewController(deeplClient)
 	translationController.Attach(r, "/translate")
+
+	return r
+}
+
+func main() {
+	l := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	cfg, err := config.Load()
+	if err != nil {
+		l.Error("failed to load configuration", slog.String("err", err.Error()))
+		os.Exit(1)
+	}
+
+	r := initRouter(cfg)
 
 	srv := http.Server{
 		Addr:    os.Getenv("SERVER_ADDR"),
@@ -53,11 +61,9 @@ func main() {
 		},
 	}
 
-	certFile := os.Getenv("TLS_CERT")
-	keyFile := os.Getenv("TLS_KEY")
-
-	if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil {
-		l.Error("failed to run the server", err)
+	l.Info(fmt.Sprintf("server starting at %s", cfg.Addr))
+	if err := srv.ListenAndServeTLS(cfg.TlsCert, cfg.TlsKey); err != nil {
+		l.Error("failed to start the server", slog.String("err", err.Error()))
 		os.Exit(1)
 	}
 }
