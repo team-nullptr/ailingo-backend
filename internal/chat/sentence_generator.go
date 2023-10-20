@@ -3,6 +3,7 @@ package chat
 import (
 	"ailingo/internal/models"
 	"ailingo/pkg/openai"
+	"context"
 	_ "embed"
 
 	"encoding/json"
@@ -34,10 +35,10 @@ type GenerationResult struct {
 }
 
 // GenerateSentence tries to generate a unique sentence with the provided definition.
-func (s *SentenceService) GenerateSentence(word models.Word) (*GenerationResult, error) {
+func (s *SentenceService) GenerateSentence(ctx context.Context, word models.Word) (*GenerationResult, error) {
 	wordPrompt := word.ToChatPrompt()
 
-	completion, err := s.chatClient.RequestCompletion(openai.CompletionChat{
+	completion, err := s.chatClient.RequestCompletion(ctx, openai.CompletionChat{
 		Model: "gpt-3.5-turbo",
 		Messages: []openai.Message{
 			{Role: "system", Content: __sentenceGeneratorPersona},

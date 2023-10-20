@@ -2,6 +2,7 @@ package openai
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,10 +29,10 @@ var (
 	ErrModeration       = errors.New("prompt flagged")
 )
 
-func (cc *ChatClient) RequestCompletion(chat CompletionChat) (*Completion, error) {
+func (cc *ChatClient) RequestCompletion(ctx context.Context, chat CompletionChat) (*Completion, error) {
 	for _, msg := range chat.Messages {
 		if msg.Role == "user" {
-			result, err := cc.moderatePrompt(msg.Content)
+			result, err := cc.moderatePrompt(ctx, msg.Content)
 			if err != nil {
 				return nil, err
 			}
@@ -47,7 +48,7 @@ func (cc *ChatClient) RequestCompletion(chat CompletionChat) (*Completion, error
 		return nil, err
 	}
 
-	req, err := cc.request(http.MethodPost, "/chat/completions", bytes.NewReader(body))
+	req, err := cc.request(ctx, http.MethodPost, "/chat/completions", bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +73,7 @@ func (cc *ChatClient) RequestCompletion(chat CompletionChat) (*Completion, error
 }
 
 // moderatePrompt runs OpenAI's moderation service on the give prompt.
-func (cc *ChatClient) moderatePrompt(prompt string) (*moderationResult, error) {
+func (cc *ChatClient) moderatePrompt(ctx context.Context, prompt string) (*moderationResult, error) {
 	body, err := json.Marshal(moderationRequest{
 		Input: prompt,
 	})
@@ -80,7 +81,7 @@ func (cc *ChatClient) moderatePrompt(prompt string) (*moderationResult, error) {
 		return nil, fmt.Errorf("failed to marschal: %w", err)
 	}
 
-	req, err := cc.request(http.MethodPost, "/moderations", bytes.NewReader(body))
+	req, err := cc.request(ctx, http.MethodPost, "/moderations", bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -99,8 +100,8 @@ func (cc *ChatClient) moderatePrompt(prompt string) (*moderationResult, error) {
 	return &result, nil
 }
 
-func (cc *ChatClient) request(method string, endpoint string, body io.Reader) (*http.Request, error) {
-	req, err := http.NewRequest(method, openaiApiBase+endpoint, body)
+func (cc *ChatClient) request(ctx context.Context, method string, endpoint string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, method, openaiApiBase+endpoint, body)
 	if err != nil {
 		return nil, err
 	}
