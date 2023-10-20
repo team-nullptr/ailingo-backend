@@ -66,6 +66,8 @@ func (cc *ChatClient) RequestCompletion(chat CompletionChat) (*Completion, error
 		return nil, fmt.Errorf("%w: %w", ErrCompletionFailed, err)
 	}
 
+	fmt.Println(completion)
+
 	return &completion, nil
 }
 
@@ -82,6 +84,7 @@ func (cc *ChatClient) moderatePrompt(prompt string) (*moderationResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("Content-Type", "application/json")
 
 	res, err := cc.httpClient.Do(req)
 	if err != nil {
