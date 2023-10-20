@@ -1,30 +1,37 @@
 package main
 
 import (
+	"crypto/tls"
+	"database/sql"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"os"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
+	_ "github.com/go-sql-driver/mysql"
+
 	"ailingo/internal/chat"
 	"ailingo/internal/config"
 	"ailingo/internal/translation"
 	"ailingo/pkg/deepl"
 	"ailingo/pkg/openai"
-	"crypto/tls"
-	"fmt"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
-	"log/slog"
-	"net/http"
-	"os"
 )
 
 // TODO: We need a structured logger, look at log/slog package
 // TODO: Use load balancer to
 
-func initRouter(cfg *config.Config) *chi.Mux {
+func initRouter(cfg *config.Config) (*chi.Mux, error) {
+	_, err := sql.Open("mysql", cfg.DSN)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to db: %w", err)
+	}
+
 	openaiClient := openai.NewChatClient(http.DefaultClient, cfg.OpenaiToken)
 	deeplClient := deepl.NewClient(http.DefaultClient, cfg.DeeplToken)
 	sentenceService := chat.NewSentenceService(openaiClient)
-	chatController := chat.NewController(sentenceService)
-	translationController := translation.NewController(deeplClient)
 
 	r := chi.NewRouter()
 
@@ -36,10 +43,10 @@ func initRouter(cfg *config.Config) *chi.Mux {
 		AllowCredentials: true,
 	}))
 
-	chatController.Attach(r, "/gpt")
-	translationController.Attach(r, "/translate")
+	chat.NewController(sentenceService).Attach(r, "/gpt")
+	translation.NewController(deeplClient).Attach(r, "/translate")
 
-	return r
+	return r, nil
 }
 
 func main() {
@@ -51,7 +58,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	r := initRouter(cfg)
+	r, err := initRouter(cfg)
+	if err != nil {
+		l.Error("failed to initialize server router", slog.String("err", err.Error()))
+		os.Exit(1)
+	}
 
 	srv := http.Server{
 		Addr:    os.Getenv("SERVER_ADDR"),

@@ -1,12 +1,14 @@
 package auth
 
 import (
-	"ailingo/pkg/apiutil"
 	"context"
 	"errors"
-	"github.com/clerkinc/clerk-sdk-go/clerk"
 	"net/http"
 	"strings"
+
+	"github.com/clerkinc/clerk-sdk-go/clerk"
+
+	"ailingo/pkg/apiutil"
 )
 
 var (

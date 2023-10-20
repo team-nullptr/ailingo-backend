@@ -24,7 +24,7 @@ func NewClient(httpClient *http.Client, token string) *Client {
 }
 
 func (c *Client) Translate(ctx context.Context, text string) (string, error) {
-	body, err := json.Marshal(DeeplTranslationRequest{
+	body, err := json.Marshal(TranslationRequest{
 		Text:       []string{text},
 		TargetLang: "PL",
 	})
@@ -46,7 +46,7 @@ func (c *Client) Translate(ctx context.Context, text string) (string, error) {
 		return "", fmt.Errorf("translation error failed %d", res.StatusCode)
 	}
 
-	var result DeeplTranslationResult
+	var result TranslationResult
 	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
 		return "", fmt.Errorf("failed to decode translation response: %w", err)
 	}
