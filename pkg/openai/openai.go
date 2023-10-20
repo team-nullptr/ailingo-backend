@@ -36,8 +36,6 @@ func (cc *ChatClient) RequestCompletion(chat CompletionChat) (*Completion, error
 				return nil, err
 			}
 
-			fmt.Println(result)
-
 			if result.Results[0].Flagged {
 				return nil, ErrModeration
 			}
