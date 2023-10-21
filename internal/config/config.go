@@ -22,6 +22,7 @@ type Config struct {
 // Load loads Config, using .env as the config source, and returns it.
 func Load() (*Config, error) {
 	dotenv := flag.Bool("dotenv", false, "configure with .env")
+	flag.Parse()
 
 	if *dotenv {
 		if err := godotenv.Load(".env"); err != nil {
