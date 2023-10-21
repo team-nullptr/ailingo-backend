@@ -1,6 +1,9 @@
 package translation
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // DevTranslator stubs DeepL client functionality in order to save API calls during app development.
 type DevTranslator struct{}
@@ -10,5 +13,6 @@ func NewDevTranslator() Translator {
 }
 
 func (dt *DevTranslator) Translate(ctx context.Context, text string) (string, error) {
-	return "Development", nil
+	time.Sleep(time.Second * 3)
+	return "development", nil
 }

@@ -2,6 +2,7 @@ package translation
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -29,25 +30,28 @@ func (c *Controller) Attach(m *chi.Mux, path string) {
 	})
 }
 
+type TranslatePayload struct {
+	Phrase string `json:"phrase"`
+}
+
 // Translate is an endpoint handler for translating words using DeepL.
 func (c *Controller) Translate(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second*30)
 	defer cancel()
 
-	// TODO: Read body instead of query params
-	phrase := r.URL.Query().Get("phrase")
-	if phrase == "" {
-		apiutil.Err(w, http.StatusBadRequest, errors.New("phrase query missing"))
+	var body TranslatePayload
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		apiutil.Err(w, http.StatusBadRequest, errors.New("unprocessable request body"))
 		return
 	}
 
-	t, err := c.translator.Translate(ctx, phrase)
+	t, err := c.translator.Translate(ctx, body.Phrase)
 	if err != nil {
 		apiutil.Err(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	apiutil.Json(w, http.StatusOK, map[string]string{
-		"translation": t,
+		"definition": t,
 	})
 }
