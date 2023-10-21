@@ -9,17 +9,16 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"ailingo/pkg/apiutil"
-	"ailingo/pkg/deepl"
 )
 
 // Controller exposes handlers for translation API.
 type Controller struct {
-	deeplClient *deepl.Client
+	translator Translator
 }
 
-func NewController(deeplClient *deepl.Client) *Controller {
+func NewController(translator Translator) *Controller {
 	return &Controller{
-		deeplClient: deeplClient,
+		translator: translator,
 	}
 }
 
@@ -42,7 +41,7 @@ func (c *Controller) Translate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	t, err := c.deeplClient.Translate(ctx, phrase)
+	t, err := c.translator.Translate(ctx, phrase)
 	if err != nil {
 		apiutil.Err(w, http.StatusInternalServerError, err)
 		return

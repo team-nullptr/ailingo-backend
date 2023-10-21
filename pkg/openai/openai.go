@@ -12,13 +12,17 @@ import (
 
 const openaiApiBase = "https://api.openai.com/v1"
 
-type ChatClient struct {
+type ChatClient interface {
+	RequestCompletion(ctx context.Context, chat CompletionChat) (*Completion, error)
+}
+
+type ChatClientImpl struct {
 	token      string
 	httpClient *http.Client
 }
 
-func NewChatClient(httpClient *http.Client, token string) *ChatClient {
-	return &ChatClient{
+func NewChatClient(httpClient *http.Client, token string) *ChatClientImpl {
+	return &ChatClientImpl{
 		token:      token,
 		httpClient: httpClient,
 	}
@@ -31,7 +35,7 @@ var (
 
 // RequestCompletion creates a new chat completion with the given chat configuration.
 // User's prompt will be filtered with moderation API. If any of the user messages will be flagged completion will fail with ErrModeration.
-func (cc *ChatClient) RequestCompletion(ctx context.Context, chat CompletionChat) (*Completion, error) {
+func (cc *ChatClientImpl) RequestCompletion(ctx context.Context, chat CompletionChat) (*Completion, error) {
 	for _, msg := range chat.Messages {
 		if msg.Role == "user" {
 			result, err := cc.moderatePrompt(ctx, msg.Content)
@@ -75,7 +79,7 @@ func (cc *ChatClient) RequestCompletion(ctx context.Context, chat CompletionChat
 }
 
 // moderatePrompt runs OpenAI moderations service on the give prompt.
-func (cc *ChatClient) moderatePrompt(ctx context.Context, prompt string) (*moderationResult, error) {
+func (cc *ChatClientImpl) moderatePrompt(ctx context.Context, prompt string) (*moderationResult, error) {
 	body, err := json.Marshal(moderationRequest{
 		Input: prompt,
 	})
@@ -103,7 +107,7 @@ func (cc *ChatClient) moderatePrompt(ctx context.Context, prompt string) (*moder
 }
 
 // request assembles a base request to OpenAI API.
-func (cc *ChatClient) request(ctx context.Context, method string, endpoint string, body io.Reader) (*http.Request, error) {
+func (cc *ChatClientImpl) request(ctx context.Context, method string, endpoint string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, method, openaiApiBase+endpoint, body)
 	if err != nil {
 		return nil, err

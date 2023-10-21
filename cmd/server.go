@@ -29,9 +29,14 @@ func initRouter(cfg *config.Config) (*chi.Mux, error) {
 		return nil, fmt.Errorf("failed to connect to db: %w", err)
 	}
 
-	openaiClient := openai.NewChatClient(http.DefaultClient, cfg.OpenAIToken)
-	deeplClient := deepl.NewClient(http.DefaultClient, cfg.DeepLToken)
-	chatService := chat.NewService(openaiClient)
+	translator := translation.NewDevTranslator()
+	chatService := chat.NewDevService()
+
+	if cfg.Prod {
+		translator = deepl.NewClient(http.DefaultClient, cfg.DeepLToken)
+		openaiClient := openai.NewChatClient(http.DefaultClient, cfg.OpenAIToken)
+		chatService = chat.NewService(openaiClient)
+	}
 
 	r := chi.NewRouter()
 
@@ -44,7 +49,7 @@ func initRouter(cfg *config.Config) (*chi.Mux, error) {
 	}))
 
 	chat.NewController(chatService).Attach(r, "/gpt")
-	translation.NewController(deeplClient).Attach(r, "/translate")
+	translation.NewController(translator).Attach(r, "/translate")
 
 	return r, nil
 }
@@ -57,6 +62,8 @@ func main() {
 		l.Error("failed to load configuration", slog.String("err", err.Error()))
 		os.Exit(1)
 	}
+
+	l.Info(fmt.Sprintf("production %t", cfg.Prod))
 
 	r, err := initRouter(cfg)
 	if err != nil {

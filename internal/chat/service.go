@@ -23,13 +23,17 @@ var (
 //go:embed prompts/sentence_generator_v2.prompt
 var sentenceGeneratorSystem string
 
-// Service expose features related with OpenAI's chat completion API.
-type Service struct {
-	chatClient *openai.ChatClient
+type Service interface {
+	GenerateSentence(ctx context.Context, word models.Word) (*GenerationResult, error)
 }
 
-func NewService(chatClient *openai.ChatClient) *Service {
-	return &Service{
+// ServiceImpl expose features related with OpenAI's chat completion API.
+type ServiceImpl struct {
+	chatClient *openai.ChatClientImpl
+}
+
+func NewService(chatClient *openai.ChatClientImpl) Service {
+	return &ServiceImpl{
 		chatClient: chatClient,
 	}
 }
@@ -42,7 +46,7 @@ type GenerationResult struct {
 }
 
 // GenerateSentence requests a new chat completion with Sentence Generator Persona prompt.
-func (s *Service) GenerateSentence(ctx context.Context, word models.Word) (*GenerationResult, error) {
+func (s *ServiceImpl) GenerateSentence(ctx context.Context, word models.Word) (*GenerationResult, error) {
 	completion, err := s.chatClient.RequestCompletion(ctx, openai.CompletionChat{
 		Model: "gpt-3.5-turbo",
 		Messages: []openai.Message{

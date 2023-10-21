@@ -14,10 +14,10 @@ import (
 
 // Controller exposes handlers for GPT API.
 type Controller struct {
-	service *Service
+	service Service
 }
 
-func NewController(s *Service) *Controller {
+func NewController(s Service) *Controller {
 	return &Controller{
 		service: s,
 	}
