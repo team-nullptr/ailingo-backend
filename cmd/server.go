@@ -32,7 +32,7 @@ func initRouter(cfg *config.Config) (*chi.Mux, error) {
 	translator := translation.NewDevTranslator()
 	chatService := chat.NewDevService()
 
-	if cfg.Prod {
+	if cfg.Env == "PROD" {
 		translator = deepl.NewClient(http.DefaultClient, cfg.DeepLToken)
 		openaiClient := openai.NewChatClient(http.DefaultClient, cfg.OpenAIToken)
 		chatService = chat.NewService(openaiClient)
@@ -63,7 +63,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	l.Info(fmt.Sprintf("production %t", cfg.Prod))
+	l.Info(fmt.Sprintf("running in %s env", cfg.Env))
 
 	r, err := initRouter(cfg)
 	if err != nil {
@@ -72,14 +72,14 @@ func main() {
 	}
 
 	srv := http.Server{
-		Addr:    os.Getenv("SERVER_ADDR"),
+		Addr:    ":" + cfg.Port,
 		Handler: r,
 		TLSConfig: &tls.Config{
 			MinVersion: tls.VersionTLS13,
 		},
 	}
 
-	l.Info(fmt.Sprintf("server starting at %s", cfg.Addr))
+	l.Info(fmt.Sprintf("server starting at port %s", cfg.Port))
 	if err := srv.ListenAndServeTLS(cfg.TlsCert, cfg.TlsKey); err != nil {
 		l.Error("failed to start the server", slog.String("err", err.Error()))
 		os.Exit(1)

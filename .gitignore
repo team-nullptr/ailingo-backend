@@ -1,1 +1,6 @@
 .env
+
+certs
+# we want to commit development keys
+!certs/localhost-key.pem
+!certs/localhost.pem
