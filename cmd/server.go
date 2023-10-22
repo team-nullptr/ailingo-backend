@@ -24,9 +24,14 @@ import (
 // TODO: Should we consider implementing load balancer?
 
 func initRouter(cfg *config.Config) (*chi.Mux, error) {
-	_, err := sql.Open("mysql", cfg.DSN)
+	// TODO: Maybe we should separate db connection from router initialization?
+	db, err := sql.Open("mysql", cfg.DSN)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to db: %w", err)
+	}
+
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping the db: %w", err)
 	}
 
 	translator := translation.NewDevTranslator()
