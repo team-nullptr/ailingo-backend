@@ -1,0 +1,26 @@
+version: "3.8"
+services:
+  backend:
+    depends_on:
+      - db
+    image: ailingo/backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - TLS_CERT=./certs/localhost.pem
+        - TLS_KEY=./certs/localhost-key.pem
+    env_file:
+      - .env
+    ports:
+      - "${PORT}:${PORT}"
+  db:
+    image: mysql:8.1
+    restart: always
+    volumes:
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      MYSQL_ROOT_PASSWORD: development
+      MYSQL_DATABASE: ailingo
+    ports:
+      - "3306:3306"
