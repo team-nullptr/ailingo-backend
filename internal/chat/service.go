@@ -38,7 +38,7 @@ func NewService(chatClient *openai.ChatClientImpl) Service {
 	}
 }
 
-// GenerationResult represents GPT model response to sentence generation request.
+// GenerationResult represents GPT model.go response to sentence generation request.
 type GenerationResult struct {
 	Success  bool   `json:"success"`
 	Sentence string `json:"sentence,omitempty"`

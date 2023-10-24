@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -17,11 +18,13 @@ var (
 
 type UserService struct {
 	client clerk.Client
+	logger *slog.Logger
 }
 
-func NewUserService(client clerk.Client) *UserService {
+func NewUserService(logger *slog.Logger, client clerk.Client) *UserService {
 	return &UserService{
 		client: client,
+		logger: logger,
 	}
 }
 
@@ -40,13 +43,13 @@ func (us UserService) GetUser(ctx context.Context) (*clerk.User, error) {
 }
 
 // WithClaims retrieves user auth token from the request and appends claims to the context.
-func WithClaims(client clerk.Client) func(http.HandlerFunc) http.HandlerFunc {
+func WithClaims(logger *slog.Logger, client clerk.Client) func(http.HandlerFunc) http.HandlerFunc {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			authToken := getAuthToken(r)
 			claims, err := client.VerifyToken(authToken)
 			if err != nil {
-				apiutil.Err(w, http.StatusUnauthorized, nil)
+				apiutil.Err(logger, w, http.StatusUnauthorized, nil)
 				return
 			}
 			ctx := context.WithValue(r.Context(), clerk.ActiveSessionClaims, claims)

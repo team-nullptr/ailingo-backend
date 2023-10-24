@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -14,12 +15,14 @@ import (
 
 // Controller exposes handlers for GPT API.
 type Controller struct {
-	service Service
+	chatSvc Service
+	logger  *slog.Logger
 }
 
-func NewController(s Service) *Controller {
+func NewController(logger *slog.Logger, chatSvc Service) *Controller {
 	return &Controller{
-		service: s,
+		chatSvc: chatSvc,
+		logger:  logger,
 	}
 }
 
@@ -37,15 +40,15 @@ func (c *Controller) GenerateSentence(w http.ResponseWriter, r *http.Request) {
 
 	var word models.Word
 	if err := json.NewDecoder(r.Body).Decode(&word); err != nil {
-		apiutil.Err(w, http.StatusBadRequest, err)
+		apiutil.Err(c.logger, w, http.StatusBadRequest, err)
 		return
 	}
 
-	result, err := c.service.GenerateSentence(ctx, word)
+	result, err := c.chatSvc.GenerateSentence(ctx, word)
 	if err != nil {
-		apiutil.Err(w, http.StatusInternalServerError, err)
+		apiutil.Err(c.logger, w, http.StatusInternalServerError, err)
 		return
 	}
 
-	apiutil.Json(w, http.StatusOK, result)
+	apiutil.Json(c.logger, w, http.StatusOK, result)
 }

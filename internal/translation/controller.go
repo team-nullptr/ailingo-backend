@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -15,11 +16,13 @@ import (
 // Controller exposes handlers for translation API.
 type Controller struct {
 	translator Translator
+	logger     *slog.Logger
 }
 
-func NewController(translator Translator) *Controller {
+func NewController(logger *slog.Logger, translator Translator) *Controller {
 	return &Controller{
 		translator: translator,
+		logger:     logger,
 	}
 }
 
@@ -41,17 +44,17 @@ func (c *Controller) Translate(w http.ResponseWriter, r *http.Request) {
 
 	var body TranslatePayload
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		apiutil.Err(w, http.StatusBadRequest, errors.New("unprocessable request body"))
+		apiutil.Err(c.logger, w, http.StatusBadRequest, errors.New("unprocessable request body"))
 		return
 	}
 
 	t, err := c.translator.Translate(ctx, body.Phrase)
 	if err != nil {
-		apiutil.Err(w, http.StatusInternalServerError, err)
+		apiutil.Err(c.logger, w, http.StatusInternalServerError, err)
 		return
 	}
 
-	apiutil.Json(w, http.StatusOK, map[string]string{
+	apiutil.Json(c.logger, w, http.StatusOK, map[string]string{
 		"definition": t,
 	})
 }

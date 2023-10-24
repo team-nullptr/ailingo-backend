@@ -2,7 +2,7 @@ package models
 
 import "fmt"
 
-// TODO: This file is wip
+// TODO: This package will probably disappear
 
 // Word represents internal word structure
 type Word struct {

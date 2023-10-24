@@ -35,10 +35,10 @@ var (
 
 // RequestCompletion creates a new chat completion with the given chat configuration.
 // User's prompt will be filtered with moderation API. If any of the user messages will be flagged completion will fail with ErrModeration.
-func (cc *ChatClientImpl) RequestCompletion(ctx context.Context, chat CompletionChat) (*Completion, error) {
+func (c *ChatClientImpl) RequestCompletion(ctx context.Context, chat CompletionChat) (*Completion, error) {
 	for _, msg := range chat.Messages {
 		if msg.Role == "user" {
-			result, err := cc.moderatePrompt(ctx, msg.Content)
+			result, err := c.moderatePrompt(ctx, msg.Content)
 			if err != nil {
 				return nil, err
 			}
@@ -54,13 +54,13 @@ func (cc *ChatClientImpl) RequestCompletion(ctx context.Context, chat Completion
 		return nil, err
 	}
 
-	req, err := cc.request(ctx, http.MethodPost, "/chat/completions", bytes.NewReader(body))
+	req, err := c.request(ctx, http.MethodPost, "/chat/completions", bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	res, err := cc.httpClient.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (cc *ChatClientImpl) RequestCompletion(ctx context.Context, chat Completion
 }
 
 // moderatePrompt runs OpenAI moderations service on the give prompt.
-func (cc *ChatClientImpl) moderatePrompt(ctx context.Context, prompt string) (*moderationResult, error) {
+func (c *ChatClientImpl) moderatePrompt(ctx context.Context, prompt string) (*moderationResult, error) {
 	body, err := json.Marshal(moderationRequest{
 		Input: prompt,
 	})
@@ -87,13 +87,13 @@ func (cc *ChatClientImpl) moderatePrompt(ctx context.Context, prompt string) (*m
 		return nil, fmt.Errorf("failed to marschal: %w", err)
 	}
 
-	req, err := cc.request(ctx, http.MethodPost, "/moderations", bytes.NewReader(body))
+	req, err := c.request(ctx, http.MethodPost, "/moderations", bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	res, err := cc.httpClient.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("moderation request failed")
 	}
@@ -107,13 +107,12 @@ func (cc *ChatClientImpl) moderatePrompt(ctx context.Context, prompt string) (*m
 }
 
 // request assembles a base request to OpenAI API.
-func (cc *ChatClientImpl) request(ctx context.Context, method string, endpoint string, body io.Reader) (*http.Request, error) {
+func (c *ChatClientImpl) request(ctx context.Context, method string, endpoint string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, method, openaiApiBase+endpoint, body)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("Authorization", "Bearer "+cc.token)
-
+	req.Header.Set("Authorization", "Bearer "+c.token)
 	return req, nil
 }
