@@ -7,30 +7,21 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-
 	"ailingo/internal/models"
 	"ailingo/pkg/apiutil"
 )
 
 // Controller exposes handlers for GPT API.
 type Controller struct {
-	chatSvc Service
-	logger  *slog.Logger
+	chatService Service
+	logger      *slog.Logger
 }
 
-func NewController(logger *slog.Logger, chatSvc Service) *Controller {
+func NewController(logger *slog.Logger, chatService Service) *Controller {
 	return &Controller{
-		chatSvc: chatSvc,
-		logger:  logger,
+		chatService: chatService,
+		logger:      logger,
 	}
-}
-
-// Attach attaches controller to the given mux.
-func (c *Controller) Attach(m *chi.Mux, path string) {
-	m.Route(path, func(r chi.Router) {
-		r.Post("/sentence", c.GenerateSentence)
-	})
 }
 
 // GenerateSentence is an endpoint handler for generating a sentence containing submitted word.
@@ -44,7 +35,7 @@ func (c *Controller) GenerateSentence(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := c.chatSvc.GenerateSentence(ctx, word)
+	result, err := c.chatService.GenerateSentence(ctx, word)
 	if err != nil {
 		apiutil.Err(c.logger, w, http.StatusInternalServerError, err)
 		return

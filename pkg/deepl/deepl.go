@@ -16,10 +16,10 @@ type Client struct {
 	httpClient *http.Client
 }
 
-func NewClient(httpClient *http.Client, token string) *Client {
+func NewClient(token string) *Client {
 	return &Client{
 		token:      token,
-		httpClient: httpClient,
+		httpClient: http.DefaultClient,
 	}
 }
 

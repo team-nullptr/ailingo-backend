@@ -9,7 +9,7 @@ import (
 // Repo is an interface describing methods available on study set repository.
 type Repo interface {
 	// Insert inserts a new study set to the db and returns the created row.
-	Insert(data *StudySetCreate) (*StudySet, error)
+	Insert(data *studySetCreateData) (*StudySet, error)
 	// GetById gets the study set by id
 	GetById(id int64) (*StudySet, error)
 }
@@ -25,7 +25,7 @@ func NewRepo(db *sql.DB) Repo {
 	}
 }
 
-func (r *RepoImpl) Insert(data *StudySetCreate) (*StudySet, error) {
+func (r *RepoImpl) Insert(data *studySetCreateData) (*StudySet, error) {
 	query := "INSERT INTO study_sets (author_id, name, description, phrase_language, definition_language, definitions) VALUES (?, ?, ?, ?, ?, ?);"
 
 	stmt, err := r.db.Prepare(query)

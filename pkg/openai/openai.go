@@ -21,10 +21,10 @@ type ChatClientImpl struct {
 	httpClient *http.Client
 }
 
-func NewChatClient(httpClient *http.Client, token string) *ChatClientImpl {
+func NewChatClient(token string) *ChatClientImpl {
 	return &ChatClientImpl{
 		token:      token,
-		httpClient: httpClient,
+		httpClient: http.DefaultClient,
 	}
 }
 

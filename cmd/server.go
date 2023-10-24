@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/clerkinc/clerk-sdk-go/clerk"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httplog/v2"
@@ -18,11 +19,12 @@ import (
 	"ailingo/internal/config"
 	"ailingo/internal/studyset"
 	"ailingo/internal/translation"
+	"ailingo/pkg/auth"
 	"ailingo/pkg/deepl"
 	"ailingo/pkg/openai"
 )
 
-// connectToDatabase establishes a new connection with the database.
+// connectToDb establishes a new connection with the database.
 func connectToDb(cfg *config.Config) (*sql.DB, error) {
 	db, err := sql.Open("mysql", cfg.DSN)
 	if err != nil {
@@ -36,25 +38,46 @@ func connectToDb(cfg *config.Config) (*sql.DB, error) {
 	return db, nil
 }
 
-// newRouter assembles the API router.
-func newRouter(l *slog.Logger, cfg *config.Config, db *sql.DB) (*chi.Mux, error) {
-	validate := validator.New(validator.WithRequiredStructEnabled())
-	translator := translation.NewDevTranslator()
-	chatService := chat.NewDevService()
+func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	studySetRepo := studyset.NewRepo(db)
-	studySetService := studyset.NewService(studySetRepo, validate)
-
-	// If the app is running in PROD mode substitute service stubs with production ones.
-	if cfg.Env == "PROD" {
-		translator = deepl.NewClient(http.DefaultClient, cfg.DeepLToken)
-		openaiClient := openai.NewChatClient(http.DefaultClient, cfg.OpenAIToken)
-		chatService = chat.NewService(openaiClient)
+	cfg, err := config.Load()
+	if err != nil {
+		logger.Error("failed to load configuration", slog.String("err", err.Error()))
+		os.Exit(1)
 	}
 
-	r := chi.NewRouter()
+	logger.Info("starting in " + cfg.Env + " environment")
 
-	// TODO: Implement load balancer?
+	db, err := connectToDb(cfg)
+	if err != nil {
+		logger.Error("failed to establish db connection", slog.String("err", err.Error()))
+		os.Exit(1)
+	}
+	logger.Info("connected to the database")
+
+	clerkClient, err := clerk.NewClient(cfg.ClerkToken)
+	if err != nil {
+		logger.Error("failed to create clerk client")
+	}
+
+	var translator translation.Translator
+	var chatService chat.Service
+
+	if cfg.Env == config.ENV_PROD {
+		translator = deepl.NewClient(cfg.DeepLToken)
+		chatService = chat.NewService(openai.NewChatClient(cfg.OpenAIToken))
+	} else {
+		translator = translation.NewDevTranslator()
+		chatService = chat.NewDevService()
+	}
+
+	validate := validator.New(validator.WithRequiredStructEnabled())
+	studySetService := studyset.NewService(studyset.NewRepo(db), validate)
+
+	withClaims := auth.WithClaims(logger, clerkClient)
+
+	r := chi.NewRouter()
 
 	r.Use(httplog.RequestLogger(
 		httplog.NewLogger("api", httplog.Options{
@@ -71,42 +94,22 @@ func newRouter(l *slog.Logger, cfg *config.Config, db *sql.DB) (*chi.Mux, error)
 		AllowCredentials: true,
 	}))
 
-	chat.NewController(l, chatService).Attach(r, "/gpt")
-	translation.NewController(l, translator).Attach(r, "/translate")
-	studyset.NewController(l, studySetService).Attach(r, "/study-sets")
+	r.Route("/ai", func(r chi.Router) {
+		chatController := chat.NewController(logger, chatService)
+		translationController := translation.NewController(logger, translator)
 
-	return r, nil
-}
+		r.Post("/sentence", chatController.GenerateSentence)
+		r.Post("/translate", translationController.Translate)
+	})
 
-func main() {
-	l := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	r.Route("/study-sets", func(r chi.Router) {
+		studysetController := studyset.NewController(logger, studySetService)
 
-	// Config
-	cfg, err := config.Load()
-	if err != nil {
-		l.Error("failed to load configuration", slog.String("err", err.Error()))
-		os.Exit(1)
-	}
+		r.Use(withClaims)
+		r.Post("/", studysetController.Create)
+	})
 
-	l.Info("starting in " + cfg.Env + " environment")
-
-	// Database connection
-	db, err := connectToDb(cfg)
-	if err != nil {
-		l.Error("failed to establish db connection", slog.String("err", err.Error()))
-		os.Exit(1)
-	}
-
-	l.Info("connected to the database")
-
-	// Router
-	r, err := newRouter(l, cfg, db)
-	if err != nil {
-		l.Error("failed to create server router", slog.String("err", err.Error()))
-		os.Exit(1)
-	}
-
-	srv := http.Server{
+	server := http.Server{
 		Addr:    ":" + cfg.Port,
 		Handler: r,
 		TLSConfig: &tls.Config{
@@ -114,9 +117,10 @@ func main() {
 		},
 	}
 
-	l.Info(fmt.Sprintf("server starting at port %s", cfg.Port))
-	if err := srv.ListenAndServeTLS(cfg.TlsCert, cfg.TlsKey); err != nil {
-		l.Error("failed to start the server", slog.String("err", err.Error()))
+	logger.Info(fmt.Sprintf("server starting at port %s", cfg.Port))
+
+	if err := server.ListenAndServeTLS(cfg.TlsCert, cfg.TlsKey); err != nil {
+		logger.Error("failed to start the server", slog.String("err", err.Error()))
 		os.Exit(1)
 	}
 }

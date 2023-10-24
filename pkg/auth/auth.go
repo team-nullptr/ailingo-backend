@@ -43,18 +43,20 @@ func (us UserService) GetUser(ctx context.Context) (*clerk.User, error) {
 }
 
 // WithClaims retrieves user auth token from the request and appends claims to the context.
-func WithClaims(logger *slog.Logger, client clerk.Client) func(http.HandlerFunc) http.HandlerFunc {
-	return func(next http.HandlerFunc) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
+func WithClaims(logger *slog.Logger, client clerk.Client) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authToken := getAuthToken(r)
+
 			claims, err := client.VerifyToken(authToken)
 			if err != nil {
 				apiutil.Err(logger, w, http.StatusUnauthorized, nil)
 				return
 			}
+
 			ctx := context.WithValue(r.Context(), clerk.ActiveSessionClaims, claims)
 			next.ServeHTTP(w, r.WithContext(ctx))
-		}
+		})
 	}
 }
 

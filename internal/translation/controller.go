@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-
 	"ailingo/pkg/apiutil"
 )
 
@@ -24,13 +22,6 @@ func NewController(logger *slog.Logger, translator Translator) *Controller {
 		translator: translator,
 		logger:     logger,
 	}
-}
-
-// Attach attaches controller to the given mux.
-func (c *Controller) Attach(m *chi.Mux, path string) {
-	m.Route(path, func(r chi.Router) {
-		r.Post("/", c.Translate)
-	})
 }
 
 type TranslatePayload struct {

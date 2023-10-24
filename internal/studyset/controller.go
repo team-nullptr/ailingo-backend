@@ -6,40 +6,42 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/clerkinc/clerk-sdk-go/clerk"
 
 	"ailingo/pkg/apiutil"
 )
 
 // Controller exposes handlers for study sets management API.
 type Controller struct {
-	studySetSvc *Service
-	logger      *slog.Logger
+	studySetService *Service
+	logger          *slog.Logger
 }
 
-func NewController(logger *slog.Logger, studySetSvc *Service) *Controller {
+func NewController(logger *slog.Logger, studySetService *Service) *Controller {
 	return &Controller{
-		logger:      logger,
-		studySetSvc: studySetSvc,
+		logger:          logger,
+		studySetService: studySetService,
 	}
-}
-
-// Attach attaches controller to the given mux.
-func (c *Controller) Attach(m *chi.Mux, path string) {
-	m.Route(path, func(r chi.Router) {
-		r.Post("/", c.Create)
-	})
 }
 
 // Create is an endpoint handler for creating study sets.
 func (c *Controller) Create(w http.ResponseWriter, r *http.Request) {
-	var body StudySetCreate
+	ctx := r.Context()
+
+	claims, ok := clerk.SessionFromContext(ctx)
+	if !ok {
+		apiutil.Err(c.logger, w, http.StatusUnauthorized, nil)
+	}
+
+	var body studySetCreateData
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		apiutil.Err(c.logger, w, http.StatusBadRequest, err)
 		return
 	}
 
-	created, err := c.studySetSvc.Create(&body)
+	body.AuthorId = claims.Subject
+
+	createdStudySet, err := c.studySetService.Create(&body)
 	if err != nil {
 		// TODO: Return a proper validation error
 		if errors.Is(err, ErrValidation) {
@@ -50,5 +52,5 @@ func (c *Controller) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiutil.Json(c.logger, w, http.StatusCreated, created)
+	apiutil.Json(c.logger, w, http.StatusCreated, createdStudySet)
 }

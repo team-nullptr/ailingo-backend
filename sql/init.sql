@@ -1,6 +1,6 @@
 CREATE TABLE study_sets (
     `id` INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
-    `author_id` INT NOT NULL,
+    `author_id` TEXT NOT NULL,
     `name` VARCHAR(256) NOT NULL,
     `description` VARCHAR(512) NOT NULL,
     `phrase_language`  ENUM('PL', 'EN') NOT NULL,
@@ -10,6 +10,6 @@ CREATE TABLE study_sets (
 );
 
 CREATE TABLE user_study_sets (
-    `user_id` INT NOT NULL,
+    `user_id` TEXT NOT NULL,
     `study_set_id` INT NOT NULL
 );
