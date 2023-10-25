@@ -1,15 +1,14 @@
-package chat
+package usecase
 
 import (
 	"context"
 	_ "embed"
-
-	"ailingo/internal/models"
-	"ailingo/pkg/openai"
-
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"ailingo/internal/models"
+	"ailingo/pkg/openai"
 )
 
 var (
@@ -23,17 +22,17 @@ var (
 //go:embed prompts/sentence_generator_v2.prompt
 var sentenceGeneratorSystem string
 
-type Service interface {
+type ChatUseCase interface {
 	GenerateSentence(ctx context.Context, word models.Word) (*GenerationResult, error)
 }
 
-// ServiceImpl expose features related with OpenAI's chat completion API.
-type ServiceImpl struct {
+// ChatUseCaseImpl expose features related with OpenAI's chat completion API.
+type ChatUseCaseImpl struct {
 	chatClient *openai.ChatClientImpl
 }
 
-func NewService(chatClient *openai.ChatClientImpl) Service {
-	return &ServiceImpl{
+func NewChat(chatClient *openai.ChatClientImpl) ChatUseCase {
+	return &ChatUseCaseImpl{
 		chatClient: chatClient,
 	}
 }
@@ -46,8 +45,8 @@ type GenerationResult struct {
 }
 
 // GenerateSentence requests a new chat completion with Sentence Generator Persona prompt.
-func (s *ServiceImpl) GenerateSentence(ctx context.Context, word models.Word) (*GenerationResult, error) {
-	completion, err := s.chatClient.RequestCompletion(ctx, openai.CompletionChat{
+func (uc *ChatUseCaseImpl) GenerateSentence(ctx context.Context, word models.Word) (*GenerationResult, error) {
+	completion, err := uc.chatClient.RequestCompletion(ctx, openai.CompletionChat{
 		Model: "gpt-3.5-turbo",
 		Messages: []openai.Message{
 			{Role: "system", Content: sentenceGeneratorSystem},

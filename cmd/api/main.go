@@ -15,10 +15,10 @@ import (
 	"github.com/go-playground/validator/v10"
 	_ "github.com/go-sql-driver/mysql"
 
-	"ailingo/internal/chat"
+	aiController "ailingo/internal/ai/controller"
+	aiUseCase "ailingo/internal/ai/usecase"
 	"ailingo/internal/config"
 	"ailingo/internal/studyset"
-	"ailingo/internal/translation"
 	"ailingo/pkg/auth"
 	"ailingo/pkg/deepl"
 	"ailingo/pkg/openai"
@@ -39,6 +39,8 @@ func connectToDb(cfg *config.Config) (*sql.DB, error) {
 }
 
 func main() {
+	// loggers, connections, configs
+
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	cfg, err := config.Load()
@@ -46,7 +48,6 @@ func main() {
 		logger.Error("failed to load configuration", slog.String("err", err.Error()))
 		os.Exit(1)
 	}
-
 	logger.Info("starting in " + cfg.Env + " environment")
 
 	db, err := connectToDb(cfg)
@@ -61,22 +62,27 @@ func main() {
 		logger.Error("failed to create clerk client")
 	}
 
-	var translator translation.Translator
-	var chatService chat.Service
+	validate := validator.New(validator.WithRequiredStructEnabled())
 
+	// repos, use-cases
+
+	translationUseCase := aiUseCase.NewTranslationDev()
+	chatUseCase := aiUseCase.NewChatDev()
 	if cfg.Env == config.ENV_PROD {
-		translator = deepl.NewClient(cfg.DeepLToken)
-		chatService = chat.NewService(openai.NewChatClient(cfg.OpenAIToken))
-	} else {
-		translator = translation.NewDevTranslator()
-		chatService = chat.NewDevService()
+		translationUseCase = deepl.NewClient(cfg.DeepLToken)
+		chatUseCase = aiUseCase.NewChat(openai.NewChatClient(cfg.OpenAIToken))
 	}
 
-	validate := validator.New(validator.WithRequiredStructEnabled())
-	studySetService := studyset.NewService(studyset.NewRepo(db), validate)
+	studySetRepo, err := studyset.NewRepo(db)
+	if err != nil {
+		logger.Error("failed to initialize study set repo", slog.String("err", err.Error()))
+		os.Exit(1)
+	}
+	studySetUseCase := studyset.NewUseCase(studySetRepo, validate)
+
+	// app router
 
 	withClaims := auth.WithClaims(logger, clerkClient)
-
 	r := chi.NewRouter()
 
 	r.Use(httplog.RequestLogger(
@@ -95,18 +101,15 @@ func main() {
 	}))
 
 	r.Route("/ai", func(r chi.Router) {
-		chatController := chat.NewController(logger, chatService)
-		translationController := translation.NewController(logger, translator)
-
-		r.Post("/sentence", chatController.GenerateSentence)
-		r.Post("/translate", translationController.Translate)
+		c := aiController.New(logger, chatUseCase, translationUseCase)
+		r.Post("/sentence", c.GenerateSentence)
+		r.Post("/translate", c.Translate)
 	})
 
 	r.Route("/study-sets", func(r chi.Router) {
-		studysetController := studyset.NewController(logger, studySetService)
-
+		c := studyset.New(logger, studySetUseCase)
 		r.Use(withClaims)
-		r.Post("/", studysetController.Create)
+		r.Post("/", c.Create)
 	})
 
 	server := http.Server{

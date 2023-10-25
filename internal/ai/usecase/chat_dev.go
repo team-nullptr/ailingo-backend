@@ -1,4 +1,4 @@
-package chat
+package usecase
 
 import (
 	"context"
@@ -7,18 +7,17 @@ import (
 	"ailingo/internal/models"
 )
 
-// DevService can be used when the backend is running in development mode.
+// ChatDevUseCase can be used when the backend is running in development mode.
 // It does not make real requests to OpenAI API. Returns a fake response instead
 // to save money.
-type DevService struct{}
+type ChatDevUseCase struct{}
 
-func NewDevService() Service {
-	return &DevService{}
+func NewChatDev() ChatUseCase {
+	return &ChatDevUseCase{}
 }
 
-// GenerateSentence generates a fake example sentence.
-// If the phrase is equal to fail an example unsuccessful result will be returned.
-func (ds *DevService) GenerateSentence(ctx context.Context, word models.Word) (*GenerationResult, error) {
+// GenerateSentence generates a fake example sentence. // If the phrase is equal to fail an example unsuccessful result will be returned.
+func (uc *ChatDevUseCase) GenerateSentence(ctx context.Context, word models.Word) (*GenerationResult, error) {
 	time.Sleep(time.Second * 3)
 
 	if word.Phrase == "fail" {

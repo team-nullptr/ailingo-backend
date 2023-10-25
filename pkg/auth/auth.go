@@ -47,13 +47,11 @@ func WithClaims(logger *slog.Logger, client clerk.Client) func(http.Handler) htt
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authToken := getAuthToken(r)
-
 			claims, err := client.VerifyToken(authToken)
 			if err != nil {
 				apiutil.Err(logger, w, http.StatusUnauthorized, nil)
 				return
 			}
-
 			ctx := context.WithValue(r.Context(), clerk.ActiveSessionClaims, claims)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})

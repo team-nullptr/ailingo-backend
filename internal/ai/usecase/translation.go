@@ -1,7 +1,7 @@
-package translation
+package usecase
 
 import "context"
 
-type Translator interface {
+type TranslationUseCase interface {
 	Translate(ctx context.Context, text string) (string, error)
 }
