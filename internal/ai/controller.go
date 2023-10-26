@@ -40,13 +40,15 @@ func (c *Controller) GenerateSentence(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := c.chatUseCase.GenerateSentence(ctx, word)
+	generatedSentence, err := c.chatUseCase.GenerateSentence(ctx, word)
 	if err != nil {
 		apiutil.Err(c.logger, w, http.StatusInternalServerError, err)
 		return
 	}
 
-	apiutil.Json(c.logger, w, http.StatusOK, result)
+	apiutil.Json(c.logger, w, http.StatusOK, map[string]string{
+		"sentence": generatedSentence,
+	})
 }
 
 type translatePayload struct {

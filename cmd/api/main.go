@@ -68,11 +68,15 @@ func main() {
 	// repos, use-cases
 
 	translationUseCase := translate.NewTranslationDev()
-	chatUseCase := sentence.NewChatDev()
 	if cfg.Env == config.ENV_PROD {
 		translationUseCase = deepl.NewClient(cfg.DeepLToken)
-		chatUseCase = sentence.NewChat(openai.NewChatClient(cfg.OpenAIToken))
 	}
+
+	sentenceRepo := sentence.NewDevRepo()
+	if cfg.Env == config.ENV_PROD {
+		sentenceRepo = sentence.NewRepo(openai.NewChatClient(cfg.OpenAIToken))
+	}
+	chatUseCase := sentence.NewChatUseCase(sentenceRepo)
 
 	studySetRepo, err := studyset.NewRepo(db)
 	if err != nil {
