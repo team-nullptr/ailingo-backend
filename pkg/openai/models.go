@@ -8,7 +8,7 @@ type Message struct {
 
 // CompletionChat represents completion chat settings.
 type CompletionChat struct {
-	Model     string    `json:"model.go"`
+	Model     string    `json:"model"`
 	Messages  []Message `json:"messages"`
 	MaxTokens uint      `json:"max_tokens"`
 }
