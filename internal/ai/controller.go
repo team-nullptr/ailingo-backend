@@ -1,6 +1,8 @@
-package controller
+package ai
 
 import (
+	"ailingo/internal/ai/sentence"
+	"ailingo/internal/ai/translate"
 	"context"
 	"encoding/json"
 	"errors"
@@ -8,7 +10,6 @@ import (
 	"net/http"
 	"time"
 
-	usecase2 "ailingo/internal/ai/usecase"
 	"ailingo/internal/models"
 	"ailingo/pkg/apiutil"
 )
@@ -16,11 +17,11 @@ import (
 // Controller exposes handlers for AI related features API.
 type Controller struct {
 	logger             *slog.Logger
-	chatUseCase        usecase2.ChatUseCase
-	translationUseCase usecase2.TranslationUseCase
+	chatUseCase        sentence.ChatUseCase
+	translationUseCase translate.TranslationUseCase
 }
 
-func New(logger *slog.Logger, chatUseCase usecase2.ChatUseCase, translationUseCase usecase2.TranslationUseCase) *Controller {
+func New(logger *slog.Logger, chatUseCase sentence.ChatUseCase, translationUseCase translate.TranslationUseCase) *Controller {
 	return &Controller{
 		logger:             logger,
 		chatUseCase:        chatUseCase,
