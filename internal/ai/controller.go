@@ -1,6 +1,8 @@
-package controller
+package ai
 
 import (
+	"ailingo/internal/ai/sentence"
+	"ailingo/internal/ai/translate"
 	"context"
 	"encoding/json"
 	"errors"
@@ -8,7 +10,6 @@ import (
 	"net/http"
 	"time"
 
-	usecase2 "ailingo/internal/ai/usecase"
 	"ailingo/internal/models"
 	"ailingo/pkg/apiutil"
 )
@@ -16,11 +17,11 @@ import (
 // Controller exposes handlers for AI related features API.
 type Controller struct {
 	logger             *slog.Logger
-	chatUseCase        usecase2.ChatUseCase
-	translationUseCase usecase2.TranslationUseCase
+	chatUseCase        sentence.ChatUseCase
+	translationUseCase translate.TranslationUseCase
 }
 
-func New(logger *slog.Logger, chatUseCase usecase2.ChatUseCase, translationUseCase usecase2.TranslationUseCase) *Controller {
+func New(logger *slog.Logger, chatUseCase sentence.ChatUseCase, translationUseCase translate.TranslationUseCase) *Controller {
 	return &Controller{
 		logger:             logger,
 		chatUseCase:        chatUseCase,
@@ -39,13 +40,15 @@ func (c *Controller) GenerateSentence(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := c.chatUseCase.GenerateSentence(ctx, word)
+	generatedSentence, err := c.chatUseCase.GenerateSentence(ctx, word)
 	if err != nil {
 		apiutil.Err(c.logger, w, http.StatusInternalServerError, err)
 		return
 	}
 
-	apiutil.Json(c.logger, w, http.StatusOK, result)
+	apiutil.Json(c.logger, w, http.StatusOK, map[string]string{
+		"sentence": generatedSentence,
+	})
 }
 
 type translatePayload struct {

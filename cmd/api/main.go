@@ -1,6 +1,9 @@
 package main
 
 import (
+	"ailingo/internal/ai"
+	"ailingo/internal/ai/sentence"
+	"ailingo/internal/ai/translate"
 	"crypto/tls"
 	"database/sql"
 	"fmt"
@@ -15,8 +18,6 @@ import (
 	"github.com/go-playground/validator/v10"
 	_ "github.com/go-sql-driver/mysql"
 
-	aiController "ailingo/internal/ai/controller"
-	aiUseCase "ailingo/internal/ai/usecase"
 	"ailingo/internal/config"
 	"ailingo/internal/studyset"
 	"ailingo/pkg/auth"
@@ -66,12 +67,14 @@ func main() {
 
 	// repos, use-cases
 
-	translationUseCase := aiUseCase.NewTranslationDev()
-	chatUseCase := aiUseCase.NewChatDev()
+	translationRepo := translate.NewDevRepo()
+	sentenceRepo := sentence.NewDevRepo()
 	if cfg.Env == config.ENV_PROD {
-		translationUseCase = deepl.NewClient(cfg.DeepLToken)
-		chatUseCase = aiUseCase.NewChat(openai.NewChatClient(cfg.OpenAIToken))
+		translationRepo = translate.NewRepo(deepl.NewClient(cfg.DeepLToken))
+		sentenceRepo = sentence.NewRepo(openai.NewChatClient(cfg.OpenAIToken))
 	}
+	translationUseCase := translate.NewTranslationUseCase(translationRepo)
+	chatUseCase := sentence.NewChatUseCase(sentenceRepo)
 
 	studySetRepo, err := studyset.NewRepo(db)
 	if err != nil {
@@ -101,7 +104,7 @@ func main() {
 	}))
 
 	r.Route("/ai", func(r chi.Router) {
-		c := aiController.New(logger, chatUseCase, translationUseCase)
+		c := ai.New(logger, chatUseCase, translationUseCase)
 		r.Post("/sentence", c.GenerateSentence)
 		r.Post("/translate", c.Translate)
 	})
