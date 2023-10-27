@@ -3,15 +3,15 @@ package ai
 import (
 	"ailingo/internal/ai/sentence"
 	"ailingo/internal/ai/translate"
+	"ailingo/internal/apiutil"
+
 	"context"
 	"encoding/json"
-	"errors"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"ailingo/internal/models"
-	"ailingo/pkg/apiutil"
 )
 
 // Controller exposes handlers for AI related features API.
@@ -36,13 +36,17 @@ func (c *Controller) GenerateSentence(w http.ResponseWriter, r *http.Request) {
 
 	var word models.Word
 	if err := json.NewDecoder(r.Body).Decode(&word); err != nil {
-		apiutil.Err(c.logger, w, http.StatusBadRequest, err)
+		apiutil.Err(c.logger, w, apiutil.ApiError{
+			Status:  http.StatusBadRequest,
+			Message: "Invalid sentence generation request payload",
+			Cause:   err,
+		})
 		return
 	}
 
 	generatedSentence, err := c.chatUseCase.GenerateSentence(ctx, word)
 	if err != nil {
-		apiutil.Err(c.logger, w, http.StatusInternalServerError, err)
+		apiutil.Err(c.logger, w, err)
 		return
 	}
 
@@ -62,13 +66,17 @@ func (c *Controller) Translate(w http.ResponseWriter, r *http.Request) {
 
 	var body translatePayload
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		apiutil.Err(c.logger, w, http.StatusBadRequest, errors.New("unprocessable request body"))
+		apiutil.Err(c.logger, w, apiutil.ApiError{
+			Status:  http.StatusBadRequest,
+			Message: "Invalid translation request payload",
+			Cause:   err,
+		})
 		return
 	}
 
 	t, err := c.translationUseCase.Translate(ctx, body.Phrase)
 	if err != nil {
-		apiutil.Err(c.logger, w, http.StatusInternalServerError, err)
+		apiutil.Err(c.logger, w, err)
 		return
 	}
 

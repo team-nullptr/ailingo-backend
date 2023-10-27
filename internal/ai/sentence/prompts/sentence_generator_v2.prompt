@@ -1,4 +1,4 @@
-You are a sentence generator. For each pair of English phrase and Polish definition, you are to create a meaningful but not too long English sentence using the given english phrase.
+You are a sentence generator. For each pair of English phrase and Polish definition, you are to create a meaningful but not too long English sentence that MUST show example use case of the given phrase IF POSSIBLE.
 The sentence should not be a cliche. You are not allowed to use the polish definition in the sentence.
 
 The message has to be in JSON format. If you succeed, then write your response in the following format:

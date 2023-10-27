@@ -3,13 +3,14 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/clerkinc/clerk-sdk-go/clerk"
 
-	"ailingo/pkg/apiutil"
+	"ailingo/internal/apiutil"
 )
 
 var (
@@ -35,10 +36,12 @@ func (us UserService) GetUser(ctx context.Context) (*clerk.User, error) {
 	if !ok {
 		return nil, ErrNoClaims
 	}
+
 	user, err := us.client.Users().Read(claims.Subject)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read the user: %w", err)
 	}
+
 	return user, nil
 }
 
@@ -49,9 +52,13 @@ func WithClaims(logger *slog.Logger, client clerk.Client) func(http.Handler) htt
 			authToken := getAuthToken(r)
 			claims, err := client.VerifyToken(authToken)
 			if err != nil {
-				apiutil.Err(logger, w, http.StatusUnauthorized, nil)
+				apiutil.Err(logger, w, apiutil.ApiError{
+					Status: http.StatusUnauthorized,
+					Cause:  err,
+				})
 				return
 			}
+
 			ctx := context.WithValue(r.Context(), clerk.ActiveSessionClaims, claims)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -59,6 +66,6 @@ func WithClaims(logger *slog.Logger, client clerk.Client) func(http.Handler) htt
 }
 
 func getAuthToken(r *http.Request) string {
-	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
-	return strings.TrimPrefix(authHeader, "Bearer ")
+	authHeader := r.Header.Get("Authorization")
+	return strings.TrimPrefix(strings.TrimSpace(authHeader), "Bearer ")
 }

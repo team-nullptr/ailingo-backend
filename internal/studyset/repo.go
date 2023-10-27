@@ -1,17 +1,25 @@
 package studyset
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"ailingo/internal/models"
 )
 
-// InsertStudySetData represents data required to create a new study set.
-// TODO: Possible values for languages are `pl-PL` and `en-US`. Can we validate that in a neat way?
-type InsertStudySetData struct {
+type insertStudySetData struct {
 	AuthorId           string        `json:"-" validate:"required"`
+	Name               string        `json:"name" validate:"required,ascii,max=128"`
+	Description        string        `json:"description" validate:"required,ascii,max=512"`
+	PhraseLanguage     string        `json:"phraseLanguage" validate:"required"`
+	DefinitionLanguage string        `json:"definitionLanguage" validate:"required"`
+	Definitions        []models.Word `json:"definitions"`
+}
+
+type updateStudySetData struct {
 	Name               string        `json:"name" validate:"required,ascii,max=128"`
 	Description        string        `json:"description" validate:"required,ascii,max=512"`
 	PhraseLanguage     string        `json:"phraseLanguage" validate:"required"`
@@ -21,15 +29,16 @@ type InsertStudySetData struct {
 
 // Repo is an interface describing methods available on study set repository.
 type Repo interface {
-	// Insert inserts a new study set to the db and returns the created row.
-	Insert(data *InsertStudySetData) (*models.StudySet, error)
-
-	// GetAll gets all the study sets.
-	// TODO: Do we need pagination?
-	GetAll() ([]*models.StudySet, error)
-
+	// GetAllSummary gets all the study sets without heavy fields like `definitions`.
+	GetAllSummary(ctx context.Context) ([]*models.StudySetSummary, error)
 	// GetById gets the study set by id.
-	GetById(id int64) (*models.StudySet, error)
+	GetById(ctx context.Context, studySetID int64) (*models.StudySet, error)
+	// Insert inserts a new study set to the db.
+	Insert(ctx context.Context, insertData *insertStudySetData) (*models.StudySet, error)
+	// Update updates the study set.
+	Update(ctx context.Context, studySetID int64, updateData *updateStudySetData) error
+	// Delete deletes the study set with the given id.
+	Delete(ctx context.Context, studySetID int64) error
 }
 
 // DefaultRepo is the default implementation for Repo.
@@ -48,18 +57,59 @@ func NewRepo(db *sql.DB) (Repo, error) {
 	}, nil
 }
 
-func (r *DefaultRepo) Insert(data *InsertStudySetData) (*models.StudySet, error) {
-	definitionsJson, err := json.Marshal(data.Definitions)
+func (r *DefaultRepo) GetAllSummary(ctx context.Context) ([]*models.StudySetSummary, error) {
+	rows, err := r.query.getAllSummary.QueryContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query: %w", err)
+	}
+
+	var studySets []*models.StudySetSummary
+
+	for rows.Next() {
+		var studySet models.StudySetSummary
+		if err := rows.Scan(&studySet.Id, &studySet.AuthorId, &studySet.Name, &studySet.Description, &studySet.PhraseLanguage, &studySet.DefinitionLanguage); err != nil {
+			return nil, fmt.Errorf("failed to scan the row: %w", err)
+		}
+
+		studySets = append(studySets, &studySet)
+	}
+
+	return studySets, nil
+}
+
+func (r *DefaultRepo) GetById(ctx context.Context, studySetID int64) (*models.StudySet, error) {
+	var (
+		studySet       models.StudySet
+		definitionsRaw json.RawMessage
+	)
+
+	if err := r.query.getById.QueryRowContext(ctx, studySetID).Scan(&studySet.Id, &studySet.AuthorId, &studySet.Name, &studySet.Description, &studySet.PhraseLanguage, &studySet.DefinitionLanguage, &definitionsRaw); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to query: %w", err)
+	}
+
+	if err := json.Unmarshal(definitionsRaw, &studySet.Definitions); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal scanned definitions: %w", err)
+	}
+
+	return &studySet, nil
+}
+
+func (r *DefaultRepo) Insert(ctx context.Context, insertData *insertStudySetData) (*models.StudySet, error) {
+	definitionsJson, err := json.Marshal(insertData.Definitions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal study set's definitions: %w", err)
 	}
 
-	res, err := r.query.insert.Exec(
-		data.AuthorId,
-		data.Name,
-		data.Description,
-		data.PhraseLanguage,
-		data.DefinitionLanguage,
+	res, err := r.query.insert.ExecContext(
+		ctx,
+		insertData.AuthorId,
+		insertData.Name,
+		insertData.Description,
+		insertData.PhraseLanguage,
+		insertData.DefinitionLanguage,
 		definitionsJson,
 	)
 	if err != nil {
@@ -71,47 +121,34 @@ func (r *DefaultRepo) Insert(data *InsertStudySetData) (*models.StudySet, error)
 		return nil, fmt.Errorf("failed to get last insert id: %w", err)
 	}
 
-	return r.GetById(lastInsertId)
+	return r.GetById(ctx, lastInsertId)
 }
 
-func (r *DefaultRepo) GetById(id int64) (*models.StudySet, error) {
-	var studySet models.StudySet
-	var definitionsRaw json.RawMessage
-
-	if err := r.query.getById.QueryRow(id).Scan(&studySet.Id, &studySet.AuthorId, &studySet.Name, &studySet.Description, &studySet.PhraseLanguage, &studySet.DefinitionLanguage, &definitionsRaw); err != nil {
-		return nil, fmt.Errorf("failed to query: %w", err)
-	}
-
-	if err := json.Unmarshal(definitionsRaw, &studySet.Definitions); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal scanned definitions: %w", err)
-	}
-
-	return &studySet, nil
-}
-
-func (r *DefaultRepo) GetAll() ([]*models.StudySet, error) {
-	rows, err := r.query.getAll.Query()
+func (r *DefaultRepo) Update(ctx context.Context, studySetID int64, updateData *updateStudySetData) error {
+	definitionsJson, err := json.Marshal(updateData.Definitions)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query: %w", err)
+		return fmt.Errorf("failed to marshal study set's definitions: %w", err)
 	}
 
-	var studySets []*models.StudySet
-	for rows.Next() {
-		var (
-			studySet       models.StudySet
-			definitionsRaw json.RawMessage
-		)
-
-		if err := rows.Scan(&studySet.Id, &studySet.AuthorId, &studySet.Name, &studySet.Description, &studySet.PhraseLanguage, &studySet.DefinitionLanguage, &definitionsRaw); err != nil {
-			return nil, fmt.Errorf("failed to scan the row: %w", err)
-		}
-
-		if err := json.Unmarshal(definitionsRaw, &studySet.Definitions); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal scanned definitions: %w", err)
-		}
-
-		studySets = append(studySets, &studySet)
+	if _, err := r.query.update.ExecContext(
+		ctx,
+		updateData.Name,
+		updateData.Description,
+		updateData.PhraseLanguage,
+		updateData.DefinitionLanguage,
+		definitionsJson,
+		studySetID,
+	); err != nil {
+		return fmt.Errorf("failed to exec the query: %w", err)
 	}
 
-	return studySets, nil
+	return nil
+}
+
+func (r *DefaultRepo) Delete(ctx context.Context, studySetID int64) error {
+	if _, err := r.query.delete.ExecContext(ctx, studySetID); err != nil {
+		return fmt.Errorf("failed to exec the query: %w", err)
+	}
+
+	return nil
 }

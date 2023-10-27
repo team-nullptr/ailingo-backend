@@ -1,15 +1,17 @@
 package main
 
 import (
-	"ailingo/internal/ai"
-	"ailingo/internal/ai/sentence"
-	"ailingo/internal/ai/translate"
 	"crypto/tls"
 	"database/sql"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+
+	"ailingo/internal/ai"
+	"ailingo/internal/ai/sentence"
+	"ailingo/internal/ai/translate"
+	"ailingo/internal/auth"
 
 	"github.com/clerkinc/clerk-sdk-go/clerk"
 	"github.com/go-chi/chi/v5"
@@ -20,7 +22,6 @@ import (
 
 	"ailingo/internal/config"
 	"ailingo/internal/studyset"
-	"ailingo/pkg/auth"
 	"ailingo/pkg/deepl"
 	"ailingo/pkg/openai"
 )
@@ -40,7 +41,7 @@ func connectToDb(cfg *config.Config) (*sql.DB, error) {
 }
 
 func main() {
-	// loggers, connections, configs
+	// Setup loggers, load configuration and configure clients
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
@@ -65,7 +66,7 @@ func main() {
 
 	validate := validator.New(validator.WithRequiredStructEnabled())
 
-	// repos, use-cases
+	// Create use cases and repositories
 
 	translationRepo := translate.NewDevRepo()
 	sentenceRepo := sentence.NewDevRepo()
@@ -73,26 +74,29 @@ func main() {
 		translationRepo = translate.NewRepo(deepl.NewClient(cfg.DeepLToken))
 		sentenceRepo = sentence.NewRepo(openai.NewChatClient(cfg.OpenAIToken))
 	}
-	translationUseCase := translate.NewTranslationUseCase(translationRepo)
-	chatUseCase := sentence.NewChatUseCase(sentenceRepo)
 
 	studySetRepo, err := studyset.NewRepo(db)
 	if err != nil {
 		logger.Error("failed to initialize study set repo", slog.String("err", err.Error()))
 		os.Exit(1)
 	}
+
+	translationUseCase := translate.NewTranslationUseCase(translationRepo)
+	chatUseCase := sentence.NewChatUseCase(sentenceRepo)
 	studySetUseCase := studyset.NewUseCase(studySetRepo, validate)
 
-	// app router
+	userService := auth.NewUserService(logger, clerkClient)
+
+	// Setup API router
 
 	withClaims := auth.WithClaims(logger, clerkClient)
 	r := chi.NewRouter()
 
 	r.Use(httplog.RequestLogger(
 		httplog.NewLogger("api", httplog.Options{
-			LogLevel: slog.LevelDebug,
-			Concise:  true,
-			JSON:     true,
+			LogLevel:      slog.LevelDebug,
+			JSON:          true,
+			TimeFieldName: "time",
 		}),
 	))
 
@@ -103,16 +107,21 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	r.Route("/ai", func(r chi.Router) {
+	r.With(withClaims).Route("/ai", func(r chi.Router) {
 		c := ai.New(logger, chatUseCase, translationUseCase)
 		r.Post("/sentence", c.GenerateSentence)
 		r.Post("/translate", c.Translate)
 	})
 
 	r.Route("/study-sets", func(r chi.Router) {
-		c := studyset.New(logger, studySetUseCase)
-		r.Use(withClaims)
-		r.Post("/", c.Create)
+		c := studyset.NewController(logger, userService, studySetUseCase)
+
+		r.Get("/", c.GetAllSummary)
+		r.Get("/{studySetID}", c.GetById)
+
+		r.With(withClaims).Post("/", c.Create)
+		r.With(withClaims).Put("/{studySetID}", c.Update)
+		r.With(withClaims).Delete("/{studySetID}", c.Delete)
 	})
 
 	server := http.Server{
