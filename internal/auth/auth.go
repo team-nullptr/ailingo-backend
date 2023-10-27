@@ -3,12 +3,14 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/clerkinc/clerk-sdk-go/clerk"
 
-	"ailingo/pkg/apiutil"
+	"ailingo/internal/apiutil"
 )
 
 var (
@@ -17,11 +19,13 @@ var (
 
 type UserService struct {
 	client clerk.Client
+	logger *slog.Logger
 }
 
-func NewUserService(client clerk.Client) *UserService {
+func NewUserService(logger *slog.Logger, client clerk.Client) *UserService {
 	return &UserService{
 		client: client,
+		logger: logger,
 	}
 }
 
@@ -32,30 +36,36 @@ func (us UserService) GetUser(ctx context.Context) (*clerk.User, error) {
 	if !ok {
 		return nil, ErrNoClaims
 	}
+
 	user, err := us.client.Users().Read(claims.Subject)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read the user: %w", err)
 	}
+
 	return user, nil
 }
 
 // WithClaims retrieves user auth token from the request and appends claims to the context.
-func WithClaims(client clerk.Client) func(http.HandlerFunc) http.HandlerFunc {
-	return func(next http.HandlerFunc) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
+func WithClaims(logger *slog.Logger, client clerk.Client) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authToken := getAuthToken(r)
 			claims, err := client.VerifyToken(authToken)
 			if err != nil {
-				apiutil.Err(w, http.StatusUnauthorized, nil)
+				apiutil.Err(logger, w, apiutil.ApiError{
+					Status: http.StatusUnauthorized,
+					Cause:  err,
+				})
 				return
 			}
+
 			ctx := context.WithValue(r.Context(), clerk.ActiveSessionClaims, claims)
 			next.ServeHTTP(w, r.WithContext(ctx))
-		}
+		})
 	}
 }
 
 func getAuthToken(r *http.Request) string {
-	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
-	return strings.TrimPrefix(authHeader, "Bearer ")
+	authHeader := r.Header.Get("Authorization")
+	return strings.TrimPrefix(strings.TrimSpace(authHeader), "Bearer ")
 }

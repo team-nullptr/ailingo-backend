@@ -8,15 +8,20 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const (
+	ENV_PROD = "PROD"
+)
+
 // Config stores the app configuration.
 type Config struct {
-	OpenAIToken string
-	DeepLToken  string
+	Env         string
 	Port        string
 	TlsCert     string
 	TlsKey      string
 	DSN         string
-	Env         string
+	ClerkToken  string
+	OpenAIToken string
+	DeepLToken  string
 }
 
 // Load loads Config, using .env as the config source, and returns it.
@@ -41,6 +46,7 @@ func Load() (*Config, error) {
 		TlsCert:     "./certs/" + os.Getenv("TLS_CERT"),
 		TlsKey:      "./certs/" + os.Getenv("TLS_KEY"),
 		DSN:         os.Getenv("DSN"),
+		ClerkToken:  os.Getenv("CLERK_TOKEN"),
 		OpenAIToken: os.Getenv("OPENAI_TOKEN"),
 		DeepLToken:  os.Getenv("DEEPL_TOKEN"),
 	}, nil
