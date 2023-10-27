@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"ailingo/internal/ai"
 	"ailingo/internal/ai/sentence"
@@ -26,18 +27,33 @@ import (
 	"ailingo/pkg/openai"
 )
 
+type ConnectionSettings struct {
+	Attempts int
+	Sleep    time.Duration
+}
+
 // connectToDb establishes a new connection with the database.
-func connectToDb(cfg *config.Config) (*sql.DB, error) {
-	db, err := sql.Open("mysql", cfg.DSN)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to db: %w", err)
+func connectToDb(logger *slog.Logger, cfg *config.Config, settings *ConnectionSettings) (*sql.DB, error) {
+	var (
+		db  *sql.DB
+		err error
+	)
+
+	for i := 0; i < settings.Attempts; i++ {
+		db, err = sql.Open("mysql", cfg.DSN)
+		if err == nil {
+			if err = db.Ping(); err == nil {
+				return db, nil
+			}
+		}
+		if i > 0 {
+			logger.Info("Db connection failed", slog.Int("attempt", i), slog.Float64("retryIn", settings.Sleep.Seconds()))
+			time.Sleep(settings.Sleep)
+			settings.Sleep += time.Second * 2
+		}
 	}
 
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping the db: %w", err)
-	}
-
-	return db, nil
+	return nil, fmt.Errorf("failed to connect with the database after %d attempts: %w", settings.Attempts, err)
 }
 
 func main() {
@@ -52,7 +68,10 @@ func main() {
 	}
 	logger.Info("starting in " + cfg.Env + " environment")
 
-	db, err := connectToDb(cfg)
+	db, err := connectToDb(logger, cfg, &ConnectionSettings{
+		Attempts: 10,
+		Sleep:    time.Second * 2,
+	})
 	if err != nil {
 		logger.Error("failed to establish db connection", slog.String("err", err.Error()))
 		os.Exit(1)

@@ -13,7 +13,7 @@ services:
     env_file:
       - .env
     ports:
-      - "${PORT}:${PORT}"
+      - ${PORT}:${PORT}
   db:
     image: mysql:8.1
     restart: always
