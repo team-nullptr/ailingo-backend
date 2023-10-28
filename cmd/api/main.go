@@ -9,6 +9,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-chi/httprate"
+
 	"ailingo/internal/ai"
 	"ailingo/internal/ai/sentence"
 	"ailingo/internal/ai/translate"
@@ -110,6 +112,12 @@ func main() {
 
 	withClaims := auth.WithClaims(logger, clerkClient)
 	r := chi.NewRouter()
+
+	r.Use(httprate.Limit(
+		10,
+		10*time.Second,
+		httprate.WithKeyFuncs(httprate.KeyByIP, httprate.KeyByEndpoint),
+	))
 
 	r.Use(httplog.RequestLogger(
 		httplog.NewLogger("api", httplog.Options{

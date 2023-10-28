@@ -63,7 +63,7 @@ func (r *DefaultRepo) GetAllSummary(ctx context.Context) ([]*models.StudySetSumm
 		return nil, fmt.Errorf("failed to query: %w", err)
 	}
 
-	var studySets []*models.StudySetSummary
+	studySets := make([]*models.StudySetSummary, 0)
 
 	for rows.Next() {
 		var studySet models.StudySetSummary
