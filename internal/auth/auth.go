@@ -10,7 +10,7 @@ import (
 
 	"github.com/clerkinc/clerk-sdk-go/clerk"
 
-	"ailingo/internal/apiutil"
+	apiutil2 "ailingo/pkg/apiutil"
 )
 
 var (
@@ -52,7 +52,7 @@ func WithClaims(logger *slog.Logger, client clerk.Client) func(http.Handler) htt
 			authToken := getAuthToken(r)
 			claims, err := client.VerifyToken(authToken)
 			if err != nil {
-				apiutil.Err(logger, w, apiutil.ApiError{
+				apiutil2.Err(logger, w, apiutil2.ApiError{
 					Status: http.StatusUnauthorized,
 					Cause:  err,
 				})

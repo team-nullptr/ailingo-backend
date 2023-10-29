@@ -1,28 +1,24 @@
-package ai
+package httptransport
 
 import (
-	"ailingo/internal/ai/sentence"
-	"ailingo/internal/ai/translate"
-	"ailingo/internal/apiutil"
-
 	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"time"
 
-	"ailingo/internal/models"
+	"ailingo/internal/domain"
+	"ailingo/pkg/apiutil"
 )
 
-// Controller exposes handlers for AI related features API.
-type Controller struct {
+type AiController struct {
 	logger             *slog.Logger
-	chatUseCase        sentence.ChatUseCase
-	translationUseCase translate.TranslationUseCase
+	chatUseCase        domain.ChatUseCase
+	translationUseCase domain.TranslateUseCase
 }
 
-func New(logger *slog.Logger, chatUseCase sentence.ChatUseCase, translationUseCase translate.TranslationUseCase) *Controller {
-	return &Controller{
+func NewAiController(logger *slog.Logger, chatUseCase domain.ChatUseCase, translationUseCase domain.TranslateUseCase) *AiController {
+	return &AiController{
 		logger:             logger,
 		chatUseCase:        chatUseCase,
 		translationUseCase: translationUseCase,
@@ -30,11 +26,11 @@ func New(logger *slog.Logger, chatUseCase sentence.ChatUseCase, translationUseCa
 }
 
 // GenerateSentence is an endpoint handler for generating a sentence containing submitted word.
-func (c *Controller) GenerateSentence(w http.ResponseWriter, r *http.Request) {
+func (c *AiController) GenerateSentence(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second*30)
 	defer cancel()
 
-	var word models.Definition
+	var word domain.Definition
 	if err := json.NewDecoder(r.Body).Decode(&word); err != nil {
 		apiutil.Err(c.logger, w, apiutil.ApiError{
 			Status:  http.StatusBadRequest,
@@ -44,7 +40,7 @@ func (c *Controller) GenerateSentence(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	generatedSentence, err := c.chatUseCase.GenerateSentence(ctx, word)
+	generatedSentence, err := c.chatUseCase.GenerateSentence(ctx, &word)
 	if err != nil {
 		apiutil.Err(c.logger, w, err)
 		return
@@ -60,7 +56,7 @@ type translatePayload struct {
 }
 
 // Translate is an endpoint handler for translating words using DeepL.
-func (c *Controller) Translate(w http.ResponseWriter, r *http.Request) {
+func (c *AiController) Translate(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second*30)
 	defer cancel()
 

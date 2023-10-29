@@ -11,10 +11,13 @@ import (
 
 	"github.com/go-chi/httprate"
 
-	"ailingo/internal/ai"
-	"ailingo/internal/ai/sentence"
-	"ailingo/internal/ai/translate"
 	"ailingo/internal/auth"
+	"ailingo/internal/gpt"
+	"ailingo/internal/httptransport"
+	"ailingo/internal/mysql"
+	"ailingo/internal/usecase"
+	"ailingo/pkg/deepl"
+	"ailingo/pkg/openai"
 
 	"github.com/clerkinc/clerk-sdk-go/clerk"
 	"github.com/go-chi/chi/v5"
@@ -24,9 +27,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 
 	"ailingo/internal/config"
-	"ailingo/internal/studyset"
-	"ailingo/pkg/deepl"
-	"ailingo/pkg/openai"
 )
 
 type ConnectionSettings struct {
@@ -59,8 +59,6 @@ func connectToDb(logger *slog.Logger, cfg *config.Config, settings *ConnectionSe
 }
 
 func main() {
-	// Setup loggers, load configuration and configure clients
-
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	cfg, err := config.Load()
@@ -87,28 +85,23 @@ func main() {
 
 	validate := validator.New(validator.WithRequiredStructEnabled())
 
-	// Create use cases and repositories
-
-	translationRepo := translate.NewDevRepo()
-	sentenceRepo := sentence.NewDevRepo()
+	translationUseCase := usecase.NewTranslateDevUseCase()
+	sentenceRepo := gpt.NewSentenceDevRepo()
 	if cfg.Env == config.ENV_PROD {
-		translationRepo = translate.NewRepo(deepl.NewClient(cfg.DeepLToken))
-		sentenceRepo = sentence.NewRepo(openai.NewChatClient(cfg.OpenAIToken))
+		translationUseCase = usecase.NewTranslateUseCase(deepl.NewClient(cfg.DeepLToken))
+		sentenceRepo = gpt.NewSentenceRepo(openai.NewChatClient(cfg.OpenAIToken))
 	}
 
-	studySetRepo, err := studyset.NewRepo(db)
+	studySetRepo, err := mysql.NewStudySetRepo(db)
 	if err != nil {
 		logger.Error("failed to initialize study set repo", slog.String("err", err.Error()))
 		os.Exit(1)
 	}
 
-	translationUseCase := translate.NewTranslationUseCase(translationRepo)
-	chatUseCase := sentence.NewChatUseCase(sentenceRepo)
-	studySetUseCase := studyset.NewUseCase(studySetRepo, validate)
+	chatUseCase := usecase.NewChatUseCase(sentenceRepo)
+	studySetUseCase := usecase.NewStudySetUseCase(studySetRepo, validate)
 
 	userService := auth.NewUserService(logger, clerkClient)
-
-	// Setup API router
 
 	withClaims := auth.WithClaims(logger, clerkClient)
 	r := chi.NewRouter()
@@ -135,17 +128,15 @@ func main() {
 	}))
 
 	r.With(withClaims).Route("/ai", func(r chi.Router) {
-		c := ai.New(logger, chatUseCase, translationUseCase)
+		c := httptransport.NewAiController(logger, chatUseCase, translationUseCase)
 		r.Post("/sentence", c.GenerateSentence)
 		r.Post("/translate", c.Translate)
 	})
 
 	r.Route("/study-sets", func(r chi.Router) {
-		c := studyset.NewController(logger, userService, studySetUseCase)
-
+		c := httptransport.NewStudySetController(logger, userService, studySetUseCase)
 		r.Get("/", c.GetAllSummary)
 		r.Get("/{studySetID}", c.GetById)
-
 		r.With(withClaims).Post("/", c.Create)
 		r.With(withClaims).Put("/{studySetID}", c.Update)
 		r.With(withClaims).Delete("/{studySetID}", c.Delete)

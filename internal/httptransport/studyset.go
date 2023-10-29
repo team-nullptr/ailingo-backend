@@ -1,4 +1,4 @@
-package studyset
+package httptransport
 
 import (
 	"context"
@@ -11,19 +11,21 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"ailingo/internal/apiutil"
 	"ailingo/internal/auth"
+	"ailingo/internal/domain"
+	"ailingo/internal/usecase"
+	"ailingo/pkg/apiutil"
 )
 
-// Controller exposes handlers for study sets management API.
-type Controller struct {
+// StudySetController exposes handlers for study sets management API.
+type StudySetController struct {
 	logger          *slog.Logger
 	userService     *auth.UserService
-	studySetUseCase UseCase
+	studySetUseCase domain.StudySetUseCase
 }
 
-func NewController(logger *slog.Logger, userService *auth.UserService, studySetUseCase UseCase) *Controller {
-	return &Controller{
+func NewStudySetController(logger *slog.Logger, userService *auth.UserService, studySetUseCase domain.StudySetUseCase) *StudySetController {
+	return &StudySetController{
 		logger:          logger,
 		userService:     userService,
 		studySetUseCase: studySetUseCase,
@@ -31,7 +33,7 @@ func NewController(logger *slog.Logger, userService *auth.UserService, studySetU
 }
 
 // GetAllSummary is an endpoint handler for getting a summary for all existing study sets.
-func (c *Controller) GetAllSummary(w http.ResponseWriter, r *http.Request) {
+func (c *StudySetController) GetAllSummary(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second*10)
 	defer cancel()
 
@@ -45,7 +47,7 @@ func (c *Controller) GetAllSummary(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetById is an endpoint handler for getting full information about a specific study set.
-func (c *Controller) GetById(w http.ResponseWriter, r *http.Request) {
+func (c *StudySetController) GetById(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second*10)
 	defer cancel()
 
@@ -60,7 +62,7 @@ func (c *Controller) GetById(w http.ResponseWriter, r *http.Request) {
 
 	studySet, err := c.studySetUseCase.GetById(ctx, studySetID)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
+		if errors.Is(err, usecase.ErrNotFound) {
 			apiutil.Err(c.logger, w, apiutil.ApiError{
 				Status:  http.StatusNotFound,
 				Message: "This study set does not exist",
@@ -75,7 +77,7 @@ func (c *Controller) GetById(w http.ResponseWriter, r *http.Request) {
 }
 
 // Create is an endpoint handler for creating a new study set.
-func (c *Controller) Create(w http.ResponseWriter, r *http.Request) {
+func (c *StudySetController) Create(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second*10)
 	defer cancel()
 
@@ -91,7 +93,7 @@ func (c *Controller) Create(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var insertData insertStudySetData
+	var insertData domain.InsertStudySetData
 	if err := json.NewDecoder(r.Body).Decode(&insertData); err != nil {
 		apiutil.Err(c.logger, w, apiutil.ApiError{
 			Status:  http.StatusBadRequest,
@@ -106,7 +108,7 @@ func (c *Controller) Create(w http.ResponseWriter, r *http.Request) {
 
 	createdStudySet, err := c.studySetUseCase.Create(ctx, &insertData)
 	if err != nil {
-		if errors.Is(err, ErrValidation) {
+		if errors.Is(err, usecase.ErrValidation) {
 			apiutil.Err(c.logger, w, apiutil.ApiError{
 				Status:  http.StatusBadRequest,
 				Message: "Invalid request body",
@@ -122,7 +124,7 @@ func (c *Controller) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 // Update is an endpoint for replacing data of existing study set.
-func (c *Controller) Update(w http.ResponseWriter, r *http.Request) {
+func (c *StudySetController) Update(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second*10)
 	defer cancel()
 
@@ -149,7 +151,7 @@ func (c *Controller) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var updateData updateStudySetData
+	var updateData domain.UpdateStudySetData
 	if err := json.NewDecoder(r.Body).Decode(&updateData); err != nil {
 		apiutil.Err(c.logger, w, apiutil.ApiError{
 			Status:  http.StatusBadRequest,
@@ -160,12 +162,12 @@ func (c *Controller) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := c.studySetUseCase.Update(ctx, studySetID, user.ID, &updateData); err != nil {
-		if errors.Is(err, ErrNotFound) {
+		if errors.Is(err, usecase.ErrNotFound) {
 			apiutil.Err(c.logger, w, apiutil.ApiError{
 				Status:  http.StatusNotFound,
 				Message: "This study set does not exist",
 			})
-		} else if errors.Is(err, ErrForbidden) {
+		} else if errors.Is(err, usecase.ErrForbidden) {
 			apiutil.Err(c.logger, w, apiutil.ApiError{
 				Status:  http.StatusForbidden,
 				Message: "You don't have enough permission to update this study set",
@@ -181,7 +183,7 @@ func (c *Controller) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 // Delete is an endpoint for deleting a study set.
-func (c *Controller) Delete(w http.ResponseWriter, r *http.Request) {
+func (c *StudySetController) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second*10)
 	defer cancel()
 
@@ -209,12 +211,12 @@ func (c *Controller) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := c.studySetUseCase.Delete(ctx, studySetID, user.ID); err != nil {
-		if errors.Is(err, ErrNotFound) {
+		if errors.Is(err, usecase.ErrNotFound) {
 			apiutil.Err(c.logger, w, apiutil.ApiError{
 				Status:  http.StatusNotFound,
 				Message: "This study set does not exist",
 			})
-		} else if errors.Is(err, ErrForbidden) {
+		} else if errors.Is(err, usecase.ErrForbidden) {
 			apiutil.Err(c.logger, w, apiutil.ApiError{
 				Status:  http.StatusForbidden,
 				Message: "You don't have enough permission to update this study set",
