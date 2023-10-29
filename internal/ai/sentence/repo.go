@@ -1,13 +1,14 @@
 package sentence
 
 import (
-	"ailingo/internal/models"
-	"ailingo/pkg/openai"
 	"context"
 	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"ailingo/internal/models"
+	"ailingo/pkg/openai"
 )
 
 // sentenceGeneratorSystem is a prompt for sentence generator persona.
@@ -25,7 +26,7 @@ var (
 )
 
 type Repo interface {
-	GenerateSentence(ctx context.Context, word models.Word) (string, error)
+	GenerateSentence(ctx context.Context, word models.Definition) (string, error)
 }
 
 type DefaultRepo struct {
@@ -46,12 +47,12 @@ type GenerationResult struct {
 }
 
 // GenerateSentence requests a new chat completion with the Sentence Generator Persona prompt.
-func (r DefaultRepo) GenerateSentence(ctx context.Context, word models.Word) (string, error) {
+func (r DefaultRepo) GenerateSentence(ctx context.Context, definition models.Definition) (string, error) {
 	completion, err := r.chatClient.RequestCompletion(ctx, openai.CompletionChat{
 		Model: "gpt-3.5-turbo",
 		Messages: []openai.Message{
 			{Role: "system", Content: sentenceGeneratorSystem},
-			{Role: "user", Content: word.ToChatPrompt()},
+			{Role: "user", Content: fmt.Sprintf("english phrase: %s\npolish meaning: %s", definition.Phrase, definition.Meaning)},
 		},
 		MaxTokens: 256,
 	})

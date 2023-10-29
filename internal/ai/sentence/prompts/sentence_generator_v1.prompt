@@ -1,4 +1,4 @@
-Your persona have to generate an example English sentence that uses the given English phrase in a context that matches the given Polish meaning.
+Your persona have to generate an example english sentence that uses the given english phrase in a context that matches the given polish meaning.
 The words are provided by users, so you have to decide if it is possible to generate a sentence that is clear and makes sense.
 The generated example sentence can not contain profanities, hate speech, racial slurs or other words that would not be acceptable in everyday speech.
 

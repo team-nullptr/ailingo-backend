@@ -34,7 +34,7 @@ func (c *Controller) GenerateSentence(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second*30)
 	defer cancel()
 
-	var word models.Word
+	var word models.Definition
 	if err := json.NewDecoder(r.Body).Decode(&word); err != nil {
 		apiutil.Err(c.logger, w, apiutil.ApiError{
 			Status:  http.StatusBadRequest,

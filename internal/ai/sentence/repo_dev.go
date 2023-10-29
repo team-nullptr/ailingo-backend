@@ -1,10 +1,11 @@
 package sentence
 
 import (
-	"ailingo/internal/models"
 	"context"
 	"fmt"
 	"time"
+
+	"ailingo/internal/models"
 )
 
 type DevRepo struct{}
@@ -17,7 +18,7 @@ var (
 	errExampleFailure = "this is an example reason of failure"
 )
 
-func (d DevRepo) GenerateSentence(ctx context.Context, word models.Word) (string, error) {
+func (d DevRepo) GenerateSentence(ctx context.Context, word models.Definition) (string, error) {
 	select {
 	case <-ctx.Done():
 		return "", ctx.Err()

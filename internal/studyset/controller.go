@@ -100,6 +100,8 @@ func (c *Controller) Create(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+
+	// TODO: Logic leaking to the controller
 	insertData.AuthorId = user.ID
 
 	createdStudySet, err := c.studySetUseCase.Create(ctx, &insertData)

@@ -11,20 +11,20 @@ import (
 )
 
 type insertStudySetData struct {
-	AuthorId           string        `json:"-" validate:"required"`
-	Name               string        `json:"name" validate:"required,ascii,max=128"`
-	Description        string        `json:"description" validate:"required,ascii,max=512"`
-	PhraseLanguage     string        `json:"phraseLanguage" validate:"required"`
-	DefinitionLanguage string        `json:"definitionLanguage" validate:"required"`
-	Definitions        []models.Word `json:"definitions"`
+	AuthorId           string              `json:"-" validate:"required"`
+	Name               string              `json:"name" validate:"required,ascii,max=128"`
+	Description        string              `json:"description" validate:"required,ascii,max=512"`
+	PhraseLanguage     string              `json:"phraseLanguage" validate:"required"`
+	DefinitionLanguage string              `json:"definitionLanguage" validate:"required"`
+	Definitions        []models.Definition `json:"definitions"`
 }
 
 type updateStudySetData struct {
-	Name               string        `json:"name" validate:"required,ascii,max=128"`
-	Description        string        `json:"description" validate:"required,ascii,max=512"`
-	PhraseLanguage     string        `json:"phraseLanguage" validate:"required"`
-	DefinitionLanguage string        `json:"definitionLanguage" validate:"required"`
-	Definitions        []models.Word `json:"definitions"`
+	Name               string              `json:"name" validate:"required,ascii,max=128"`
+	Description        string              `json:"description" validate:"required,ascii,max=512"`
+	PhraseLanguage     string              `json:"phraseLanguage" validate:"required"`
+	DefinitionLanguage string              `json:"definitionLanguage" validate:"required"`
+	Definitions        []models.Definition `json:"definitions"`
 }
 
 // Repo is an interface describing methods available on study set repository.
