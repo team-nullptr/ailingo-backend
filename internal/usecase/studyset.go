@@ -10,19 +10,21 @@ import (
 )
 
 type StudySetUseCase struct {
-	studySetRepo domain.StudySetRepo
-	validate     *validator.Validate
+	studySetRepo   domain.StudySetRepo
+	definitionRepo domain.DefinitionRepo
+	validate       *validator.Validate
 }
 
-// NewUseCase creates a new instance of StudySetUseCaseImpl.
-func NewStudySetUseCase(studySetRepo domain.StudySetRepo, validate *validator.Validate) domain.StudySetUseCase {
+// NewStudySetUseCase creates a new instance of StudySetUseCaseImpl.
+func NewStudySetUseCase(studySetRepo domain.StudySetRepo, definitionRepo domain.DefinitionRepo, validate *validator.Validate) domain.StudySetUseCase {
 	return &StudySetUseCase{
-		studySetRepo: studySetRepo,
-		validate:     validate,
+		studySetRepo:   studySetRepo,
+		definitionRepo: definitionRepo,
+		validate:       validate,
 	}
 }
 
-func (uc *StudySetUseCase) Create(ctx context.Context, insertData *domain.InsertStudySetData) (*domain.StudySet, error) {
+func (uc *StudySetUseCase) Create(ctx context.Context, insertData *domain.InsertStudySetData) (*domain.PopulatedStudySet, error) {
 	if err := uc.validate.Struct(insertData); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrValidation, err)
 	}
@@ -32,10 +34,10 @@ func (uc *StudySetUseCase) Create(ctx context.Context, insertData *domain.Insert
 		return nil, fmt.Errorf("%w: failed to create the study set: %w", ErrRepoFailed, err)
 	}
 
-	return studySet, nil
+	return studySet.Populate([]*domain.Definition{}), nil
 }
 
-func (uc *StudySetUseCase) GetById(ctx context.Context, studySetID int64) (*domain.StudySet, error) {
+func (uc *StudySetUseCase) GetById(ctx context.Context, studySetID int64) (*domain.PopulatedStudySet, error) {
 	studySet, err := uc.studySetRepo.GetById(ctx, studySetID)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to get the study set: %w", ErrRepoFailed, err)
@@ -44,10 +46,15 @@ func (uc *StudySetUseCase) GetById(ctx context.Context, studySetID int64) (*doma
 		return nil, ErrNotFound
 	}
 
-	return studySet, nil
+	definitions, err := uc.definitionRepo.GetAllFor(ctx, studySetID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get definitions for study set")
+	}
+
+	return studySet.Populate(definitions), nil
 }
 
-func (uc *StudySetUseCase) GetAllSummary(ctx context.Context) ([]*domain.StudySetSummary, error) {
+func (uc *StudySetUseCase) GetAllSummary(ctx context.Context) ([]*domain.StudySet, error) {
 	studySets, err := uc.studySetRepo.GetAllSummary(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to get study sets: %w", ErrRepoFailed, err)

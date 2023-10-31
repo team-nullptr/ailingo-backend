@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -72,16 +71,16 @@ func NewStudySetRepo(db *sql.DB) (domain.StudySetRepo, error) {
 	}, nil
 }
 
-func (r *StudySetRepo) GetAllSummary(ctx context.Context) ([]*domain.StudySetSummary, error) {
+func (r *StudySetRepo) GetAllSummary(ctx context.Context) ([]*domain.StudySet, error) {
 	rows, err := r.query.getAllSummary.QueryContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query: %w", err)
 	}
 
-	studySets := make([]*domain.StudySetSummary, 0)
+	studySets := make([]*domain.StudySet, 0)
 
 	for rows.Next() {
-		var studySet domain.StudySetSummary
+		var studySet domain.StudySet
 		if err := rows.Scan(&studySet.Id, &studySet.AuthorId, &studySet.Name, &studySet.Description, &studySet.PhraseLanguage, &studySet.DefinitionLanguage); err != nil {
 			return nil, fmt.Errorf("failed to scan: %w", err)
 		}
@@ -93,20 +92,13 @@ func (r *StudySetRepo) GetAllSummary(ctx context.Context) ([]*domain.StudySetSum
 }
 
 func (r *StudySetRepo) GetById(ctx context.Context, studySetID int64) (*domain.StudySet, error) {
-	var (
-		studySet       domain.StudySet
-		definitionsRaw json.RawMessage
-	)
+	var studySet domain.StudySet
 
-	if err := r.query.getById.QueryRowContext(ctx, studySetID).Scan(&studySet.Id, &studySet.AuthorId, &studySet.Name, &studySet.Description, &studySet.PhraseLanguage, &studySet.DefinitionLanguage, &definitionsRaw); err != nil {
+	if err := r.query.getById.QueryRowContext(ctx, studySetID).Scan(&studySet.Id, &studySet.AuthorId, &studySet.Name, &studySet.Description, &studySet.PhraseLanguage, &studySet.DefinitionLanguage); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to query: %w", err)
-	}
-
-	if err := json.Unmarshal(definitionsRaw, &studySet.Definitions); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal scanned definitions: %w", err)
 	}
 
 	return &studySet, nil

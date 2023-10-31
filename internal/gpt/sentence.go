@@ -43,14 +43,20 @@ type GenerationResult struct {
 }
 
 // GenerateSentence requests a new chat completion with the Sentence Generator Persona prompt.
-func (r SentenceRepo) GenerateSentence(ctx context.Context, definition *domain.Definition) (string, error) {
+func (r SentenceRepo) GenerateSentence(ctx context.Context, sentenceGenerationRequest *domain.SentenceGenerationRequest) (string, error) {
 	completion, err := r.chatClient.RequestCompletion(ctx, openai.CompletionChat{
 		Model: "gpt-3.5-turbo",
 		Messages: []openai.Message{
 			{Role: "system", Content: sentenceGeneratorSystem},
-			{Role: "user", Content: fmt.Sprintf("english phrase: %s\npolish meaning: %s", definition.Phrase, definition.Meaning)},
+			{
+				Role: "user",
+				Content: fmt.Sprintf(
+					"english phrase: %s\npolish meaning: %s",
+					sentenceGenerationRequest.Phrase,
+					sentenceGenerationRequest.Meaning,
+				)},
 		},
-		MaxTokens: 256,
+		MaxTokens: 300,
 	})
 	if err != nil {
 		return "", err

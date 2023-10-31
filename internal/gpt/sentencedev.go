@@ -14,7 +14,7 @@ func NewSentenceDevRepo() domain.SentenceRepo {
 	return &SentenceDevRepo{}
 }
 
-func (d SentenceDevRepo) GenerateSentence(ctx context.Context, word *domain.Definition) (string, error) {
+func (d SentenceDevRepo) GenerateSentence(ctx context.Context, word *domain.SentenceGenerationRequest) (string, error) {
 	select {
 	case <-ctx.Done():
 		return "", ctx.Err()

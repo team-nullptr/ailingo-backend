@@ -16,31 +16,42 @@ type InsertDefinitionData struct {
 }
 
 type DefinitionRepo interface {
-	GetAll(ctx context.Context, studySetID int64) ([]*Definition, error)
+	GetAllFor(ctx context.Context, studySetID int64) ([]*Definition, error)
 	Insert(ctx context.Context, studySetID int64, insertData *InsertDefinitionData) error
 }
 
 type DefinitionUseCase interface {
-	Insert(ctx context.Context, userID string, studySetID int64, insertData *InsertDefinitionData) error
+	Create(ctx context.Context, userID string, studySetID int64, insertData *InsertDefinitionData) error
 }
 
 type StudySet struct {
-	Id                 int64        `json:"id"`
-	AuthorId           string       `json:"authorId"`
-	Name               string       `json:"name"`
-	Description        string       `json:"description"`
-	PhraseLanguage     string       `json:"phraseLanguage"`
-	DefinitionLanguage string       `json:"definitionLanguage"`
-	Definitions        []Definition `json:"definitions"`
-}
-
-type StudySetSummary struct {
 	Id                 int64  `json:"id"`
 	AuthorId           string `json:"authorId"`
 	Name               string `json:"name"`
 	Description        string `json:"description"`
 	PhraseLanguage     string `json:"phraseLanguage"`
 	DefinitionLanguage string `json:"definitionLanguage"`
+}
+
+func (s *StudySet) Populate(definitions []*Definition) *PopulatedStudySet {
+	return &PopulatedStudySet{
+		Id:                 s.Id,
+		AuthorId:           s.AuthorId,
+		Name:               s.Name,
+		PhraseLanguage:     s.PhraseLanguage,
+		DefinitionLanguage: s.DefinitionLanguage,
+		Definitions:        definitions,
+	}
+}
+
+type PopulatedStudySet struct {
+	Id                 int64         `json:"id"`
+	AuthorId           string        `json:"authorId"`
+	Name               string        `json:"name"`
+	Description        string        `json:"description"`
+	PhraseLanguage     string        `json:"phraseLanguage"`
+	DefinitionLanguage string        `json:"definitionLanguage"`
+	Definitions        []*Definition `json:"definitions"`
 }
 
 type InsertStudySetData struct {
@@ -59,7 +70,7 @@ type UpdateStudySetData struct {
 }
 
 type StudySetRepo interface {
-	GetAllSummary(ctx context.Context) ([]*StudySetSummary, error)
+	GetAllSummary(ctx context.Context) ([]*StudySet, error)
 	GetById(ctx context.Context, studySetID int64) (*StudySet, error)
 	Insert(ctx context.Context, insertData *InsertStudySetData) (*StudySet, error)
 	Update(ctx context.Context, studySetID int64, updateData *UpdateStudySetData) error
@@ -67,9 +78,9 @@ type StudySetRepo interface {
 }
 
 type StudySetUseCase interface {
-	GetAllSummary(ctx context.Context) ([]*StudySetSummary, error)
-	GetById(ctx context.Context, studySetID int64) (*StudySet, error)
-	Create(ctx context.Context, createData *InsertStudySetData) (*StudySet, error)
+	GetAllSummary(ctx context.Context) ([]*StudySet, error)
+	GetById(ctx context.Context, studySetID int64) (*PopulatedStudySet, error)
+	Create(ctx context.Context, createData *InsertStudySetData) (*PopulatedStudySet, error)
 	Update(ctx context.Context, studySetID int64, userID string, updateData *UpdateStudySetData) error
 	Delete(ctx context.Context, studySetID int64, userID string) error
 }

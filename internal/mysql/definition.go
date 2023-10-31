@@ -48,8 +48,8 @@ func NewDefinitionRepo(db *sql.DB) (domain.DefinitionRepo, error) {
 	}, nil
 }
 
-func (r *DefinitionRepo) GetAll(ctx context.Context, studySetID int64) ([]*domain.Definition, error) {
-	rows, err := r.query.getAll.Query(studySetID)
+func (r *DefinitionRepo) GetAllFor(ctx context.Context, studySetID int64) ([]*domain.Definition, error) {
+	rows, err := r.query.getAll.QueryContext(ctx, studySetID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query: %w", err)
 	}
