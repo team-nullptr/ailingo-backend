@@ -13,6 +13,8 @@ import (
 type definitionQueries struct {
 	getAll *sql.Stmt
 	insert *sql.Stmt
+	update *sql.Stmt
+	delete *sql.Stmt
 }
 
 func newDefinitionQueries(db *sql.DB) (*definitionQueries, error) {
@@ -26,9 +28,21 @@ func newDefinitionQueries(db *sql.DB) (*definitionQueries, error) {
 		return nil, fmt.Errorf("insert query: %w", err)
 	}
 
+	updateStmt, err := db.Prepare("UPDATE definition SET phrase = ?, meaning = ?, sentences = ? WHERE study_set_id = ? AND id = ?")
+	if err != nil {
+		return nil, fmt.Errorf("update query: %w", err)
+	}
+
+	deleteStmt, err := db.Prepare("DELETE FROM definition WHERE study_set_id = ? AND id = ?")
+	if err != nil {
+		return nil, fmt.Errorf("delete query: %w", err)
+	}
+
 	return &definitionQueries{
 		getAll: getAllStmt,
 		insert: insertStmt,
+		update: updateStmt,
+		delete: deleteStmt,
 	}, nil
 }
 
@@ -42,22 +56,20 @@ func NewDefinitionRepo(db *sql.DB) (domain.DefinitionRepo, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &DefinitionRepo{
 		db:    db,
 		query: query,
 	}, nil
 }
 
-func (r *DefinitionRepo) GetAllFor(ctx context.Context, studySetID int64) ([]*domain.DefinitionRow, error) {
+func (r *DefinitionRepo) GetAllFor(ctx context.Context, parentStudySetID int64) ([]*domain.DefinitionRow, error) {
 	definitions := make([]*domain.DefinitionRow, 0)
 
-	rows, err := r.query.getAll.QueryContext(ctx, studySetID)
+	rows, err := r.query.getAll.QueryContext(ctx, parentStudySetID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return definitions, nil
 		}
-
 		return nil, fmt.Errorf("failed to query: %w", err)
 	}
 
@@ -77,15 +89,32 @@ func (r *DefinitionRepo) GetAllFor(ctx context.Context, studySetID int64) ([]*do
 	return definitions, nil
 }
 
-func (r *DefinitionRepo) Insert(ctx context.Context, studySetID int64, insertData *domain.InsertDefinitionData) error {
+func (r *DefinitionRepo) Insert(ctx context.Context, parentStudySetID int64, insertData *domain.InsertDefinitionData) error {
 	sentencesJson, err := json.Marshal(insertData.Sentences)
 	if err != nil {
 		return fmt.Errorf("failed to marshal sentences array")
 	}
-
-	if _, err = r.query.insert.ExecContext(ctx, studySetID, insertData.Phrase, insertData.Meaning, sentencesJson); err != nil {
+	if _, err = r.query.insert.ExecContext(ctx, parentStudySetID, insertData.Phrase, insertData.Meaning, sentencesJson); err != nil {
 		return fmt.Errorf("failed to exec: %w", err)
 	}
+	return nil
+}
 
+func (r *DefinitionRepo) Update(ctx context.Context, parentStudySetID int64, definitionID int64, updateData *domain.UpdateDefinitionData) error {
+	sentencesJson, err := json.Marshal(updateData.Sentences)
+	if err != nil {
+		return fmt.Errorf("failed to marshal sentences array")
+	}
+	if _, err := r.query.update.ExecContext(ctx, updateData.Phrase, updateData.Meaning, sentencesJson, parentStudySetID, definitionID); err != nil {
+		return fmt.Errorf("failed to update the definition: %w", err)
+	}
+	return nil
+}
+
+func (r *DefinitionRepo) Delete(ctx context.Context, parentStudySetID int64, definitionID int64) error {
+	// TODO: We could inform if any rows were removed or not.
+	if _, err := r.query.delete.ExecContext(ctx, parentStudySetID, definitionID); err != nil {
+		return fmt.Errorf("failed to execute delete query: %w", err)
+	}
 	return nil
 }

@@ -28,14 +28,20 @@ type InsertDefinitionData struct {
 	Sentences []string `json:"sentences"`
 }
 
+type UpdateDefinitionData InsertDefinitionData
+
 // DefinitionRepo describes methods required by DefinitionRepo implementation.
 type DefinitionRepo interface {
-	GetAllFor(ctx context.Context, studySetID int64) ([]*DefinitionRow, error)
-	Insert(ctx context.Context, studySetID int64, insertData *InsertDefinitionData) error
+	GetAllFor(ctx context.Context, parentStudySetID int64) ([]*DefinitionRow, error)
+	Insert(ctx context.Context, parentStudySetID int64, insertData *InsertDefinitionData) error
+	Update(ctx context.Context, parentStudySetID int64, definitionID int64, updateData *UpdateDefinitionData) error
+	Delete(ctx context.Context, parentStudySetID int64, definitionID int64) error
 }
 
 // DefinitionUseCase describes methods required by DefinitionUseCase implementation.
 type DefinitionUseCase interface {
-	GetAllFor(ctx context.Context, studySetID int64) ([]*Definition, error)
-	Create(ctx context.Context, userID string, studySetID int64, insertData *InsertDefinitionData) error
+	GetAllFor(ctx context.Context, parentStudySetID int64) ([]*Definition, error)
+	Create(ctx context.Context, userID string, parentStudySetID int64, insertData *InsertDefinitionData) error
+	Update(ctx context.Context, userID string, parentStudySetID int64, definitionID int64, updateData *UpdateDefinitionData) error
+	Delete(ctx context.Context, userID string, parentStudySetID int64, definitionID int64) error
 }

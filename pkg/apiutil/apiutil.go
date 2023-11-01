@@ -39,7 +39,7 @@ func Err(l *slog.Logger, w http.ResponseWriter, err error) {
 	var apiError ApiError
 	if errors.As(err, &apiError) {
 		if apiError.Cause != nil {
-			l.Error(err.Error())
+			l.Warn(err.Error())
 		}
 		status = apiError.Status
 		errorMessage = apiError.Message
