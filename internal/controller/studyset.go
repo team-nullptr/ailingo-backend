@@ -36,11 +36,13 @@ func NewStudySetController(l *slog.Logger, userService *auth.UserService, studyS
 func (c *StudySetController) Router(withClaims func(next http.Handler) http.Handler) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Get("/", c.GetAllSummary)
-		r.Get("/{studySetID}", c.GetById)
-
 		r.With(withClaims).Post("/", c.Create)
+
+		r.Get("/{studySetID}", c.GetById)
 		r.With(withClaims).Put("/{studySetID}", c.Update)
 		r.With(withClaims).Delete("/{studySetID}", c.Delete)
+
+		r.Get("/{studySetID}/definitions", c.GetDefinitions)
 		r.With(withClaims).Post("/{studySetID}/definitions", c.CreateDefinition)
 		// r.With(withClaims).Delete("/{studySetID}/definitions/{definitionID}", c.DeleteDefinition)
 	}
@@ -51,7 +53,7 @@ func (c *StudySetController) GetAllSummary(w http.ResponseWriter, r *http.Reques
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second*10)
 	defer cancel()
 
-	studySets, err := c.studySetUseCase.GetAllSummary(ctx)
+	studySets, err := c.studySetUseCase.GetAll(ctx)
 	if err != nil {
 		apiutil.Err(c.l, w, err)
 		return
@@ -95,7 +97,7 @@ func (c *StudySetController) Create(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second*10)
 	defer cancel()
 
-	user, err := c.userService.GetUser(ctx)
+	user, err := c.userService.GetUserFromContext(ctx)
 	if err != nil {
 		if errors.Is(err, auth.ErrNoClaims) {
 			apiutil.Err(c.l, w, apiutil.ApiError{
@@ -142,7 +144,7 @@ func (c *StudySetController) Update(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second*10)
 	defer cancel()
 
-	user, err := c.userService.GetUser(ctx)
+	user, err := c.userService.GetUserFromContext(ctx)
 	if err != nil {
 		if errors.Is(err, auth.ErrNoClaims) {
 			apiutil.Err(c.l, w, apiutil.ApiError{
@@ -201,7 +203,7 @@ func (c *StudySetController) Delete(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second*10)
 	defer cancel()
 
-	user, err := c.userService.GetUser(ctx)
+	user, err := c.userService.GetUserFromContext(ctx)
 	if err != nil {
 		if errors.Is(err, auth.ErrNoClaims) {
 			apiutil.Err(c.l, w, apiutil.ApiError{
@@ -245,11 +247,40 @@ func (c *StudySetController) Delete(w http.ResponseWriter, r *http.Request) {
 	apiutil.Empty(w, http.StatusOK)
 }
 
-func (c *StudySetController) CreateDefinition(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), time.Second*10)
+func (c *StudySetController) GetDefinitions(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	user, err := c.userService.GetUser(ctx)
+	studySetID, err := strconv.ParseInt(chi.URLParam(r, "studySetID"), 10, 64)
+	if err != nil {
+		apiutil.Err(c.l, w, apiutil.ApiError{
+			Status:  http.StatusBadRequest,
+			Message: "Invalid study set ID",
+		})
+		return
+	}
+
+	definitions, err := c.definitionUseCase.GetAllFor(ctx, studySetID)
+	if err != nil {
+		if errors.Is(err, usecase.ErrNotFound) {
+			apiutil.Err(c.l, w, apiutil.ApiError{
+				Status:  http.StatusNotFound,
+				Message: "This study set does not exist",
+			})
+		} else {
+			apiutil.Err(c.l, w, err)
+		}
+		return
+	}
+
+	apiutil.Json(c.l, w, http.StatusOK, definitions)
+}
+
+func (c *StudySetController) CreateDefinition(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	user, err := c.userService.GetUserFromContext(ctx)
 	if err != nil {
 		if errors.Is(err, auth.ErrNoClaims) {
 			apiutil.Err(c.l, w, apiutil.ApiError{
@@ -281,7 +312,14 @@ func (c *StudySetController) CreateDefinition(w http.ResponseWriter, r *http.Req
 	}
 
 	if err := c.definitionUseCase.Create(ctx, user.ID, studySetID, &insertData); err != nil {
-		apiutil.Err(c.l, w, err)
+		if errors.Is(err, usecase.ErrNotFound) {
+			apiutil.Err(c.l, w, apiutil.ApiError{
+				Status:  http.StatusNotFound,
+				Message: "This study set does not exist",
+			})
+		} else {
+			apiutil.Err(c.l, w, err)
+		}
 		return
 	}
 

@@ -92,7 +92,7 @@ func Run(cfg *config.Config) {
 		translationUseCase = usecase.NewTranslateUseCase(deepl.NewClient(cfg.DeepLToken), validate)
 	}
 	chatUseCase := usecase.NewChatUseCase(sentenceRepo, validate)
-	studySetUseCase := usecase.NewStudySetUseCase(studySetRepo, definitionRepo, validate)
+	studySetUseCase := usecase.NewStudySetUseCase(studySetRepo, userService, validate)
 	definitionUseCase := usecase.NewDefinitionUseCase(definitionRepo, studySetRepo)
 
 	// Controllers

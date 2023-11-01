@@ -21,6 +21,29 @@ func NewDefinitionUseCase(definitionRepo domain.DefinitionRepo, studySetRepo dom
 	}
 }
 
+func (uc *DefinitionUseCase) GetAllFor(ctx context.Context, studySetID int64) ([]*domain.Definition, error) {
+	// TODO: In theory study set can be deleted between checking if it exists and getting it's definitions. Should we use transaction for that?
+	parentExists, err := uc.studySetRepo.Exists(ctx, studySetID)
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to check if parent study set exists: %w", ErrRepoFailed, err)
+	}
+	if !parentExists {
+		return nil, ErrNotFound
+	}
+
+	definitionRows, err := uc.definitionRepo.GetAllFor(ctx, studySetID)
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to get all definitions for the study set: %w", ErrRepoFailed, err)
+	}
+
+	definitions := make([]*domain.Definition, 0)
+	for _, definitionRow := range definitionRows {
+		definitions = append(definitions, definitionRow.Populate())
+	}
+
+	return definitions, nil
+}
+
 func (uc *DefinitionUseCase) Create(ctx context.Context, userID string, studySetID int64, insertData *domain.InsertDefinitionData) error {
 	parentStudySet, err := uc.studySetRepo.GetById(ctx, studySetID)
 	if err != nil {

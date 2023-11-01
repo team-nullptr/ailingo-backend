@@ -8,7 +8,7 @@ var (
 	ErrForbidden = errors.New("unauthorized")
 
 	// ErrNotFound means that resource was not found.
-	ErrNotFound = errors.New("resource found")
+	ErrNotFound = errors.New("resource not found")
 
 	// ErrRepoFailed means that repository failed to complete a required operation.
 	ErrRepoFailed = errors.New("repository failed")

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"ailingo/internal/domain"
@@ -48,28 +49,28 @@ func NewDefinitionRepo(db *sql.DB) (domain.DefinitionRepo, error) {
 	}, nil
 }
 
-func (r *DefinitionRepo) GetAllFor(ctx context.Context, studySetID int64) ([]*domain.Definition, error) {
+func (r *DefinitionRepo) GetAllFor(ctx context.Context, studySetID int64) ([]*domain.DefinitionRow, error) {
+	definitions := make([]*domain.DefinitionRow, 0)
+
 	rows, err := r.query.getAll.QueryContext(ctx, studySetID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return definitions, nil
+		}
+
 		return nil, fmt.Errorf("failed to query: %w", err)
 	}
 
-	definitions := make([]*domain.Definition, 0)
-
 	for rows.Next() {
-		var (
-			definition   domain.Definition
-			sentencesRaw json.RawMessage
-		)
+		var definition domain.DefinitionRow
+		var sentencesRaw json.RawMessage
 
 		if err := rows.Scan(&definition.Id, &definition.Phrase, &definition.Meaning, &sentencesRaw); err != nil {
 			return nil, fmt.Errorf("failed to scan: %w", err)
 		}
-
 		if err := json.Unmarshal(sentencesRaw, &definition.Sentences); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal sentences: %w", err)
 		}
-
 		definitions = append(definitions, &definition)
 	}
 

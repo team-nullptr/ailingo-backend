@@ -29,15 +29,24 @@ func NewUserService(logger *slog.Logger, client clerk.Client) *UserService {
 	}
 }
 
-// GetUser lookups the user whose claims were found in the context.
+// GetUserFromContext lookups the user whose claims were found in the context.
 // In order for this function to work, the WithClaims middleware must be applied.
-func (us UserService) GetUser(ctx context.Context) (*clerk.User, error) {
+func (us *UserService) GetUserFromContext(ctx context.Context) (*clerk.User, error) {
 	claims, ok := clerk.SessionFromContext(ctx)
 	if !ok {
 		return nil, ErrNoClaims
 	}
 
 	user, err := us.client.Users().Read(claims.Subject)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the user: %w", err)
+	}
+
+	return user, nil
+}
+
+func (us *UserService) GetUserById(userID string) (*clerk.User, error) {
+	user, err := us.client.Users().Read(userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the user: %w", err)
 	}

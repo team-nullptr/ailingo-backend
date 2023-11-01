@@ -10,14 +10,13 @@ import (
 )
 
 // studySetQueries provides all the necessary queries used by study set repo.
-// To keep things simple the queryProvider does not expose queryProvider.Close function
-// as the queryProvider is meant to be long-lived.
 type studySetQueries struct {
 	insert        *sql.Stmt
 	getById       *sql.Stmt
 	getAllSummary *sql.Stmt
 	update        *sql.Stmt
 	delete        *sql.Stmt
+	exists        *sql.Stmt
 }
 
 // newStudySetQueries creates a new prepared query provider for study set db operations.
@@ -47,12 +46,18 @@ func newStudySetQueries(db *sql.DB) (*studySetQueries, error) {
 		return nil, fmt.Errorf("delete query: %w", err)
 	}
 
+	existsStmt, err := db.Prepare("SELECT EXISTS(SELECT 1 FROM study_set WHERE id = ?)")
+	if err != nil {
+		return nil, fmt.Errorf("exists query: %w", err)
+	}
+
 	return &studySetQueries{
 		insert:        insertStmt,
 		getById:       getByIdStmt,
 		getAllSummary: getAllSummaryStmt,
 		update:        updateStmt,
 		delete:        deleteStmt,
+		exists:        existsStmt,
 	}, nil
 }
 
@@ -65,46 +70,42 @@ func NewStudySetRepo(db *sql.DB) (domain.StudySetRepo, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &StudySetRepo{
 		query: query,
 	}, nil
 }
 
-func (r *StudySetRepo) GetAllSummary(ctx context.Context) ([]*domain.StudySet, error) {
+func (r *StudySetRepo) GetAll(ctx context.Context) ([]*domain.StudySetRow, error) {
+	studySets := make([]*domain.StudySetRow, 0)
+
 	rows, err := r.query.getAllSummary.QueryContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query: %w", err)
 	}
 
-	studySets := make([]*domain.StudySet, 0)
-
 	for rows.Next() {
-		var studySet domain.StudySet
+		var studySet domain.StudySetRow
 		if err := rows.Scan(&studySet.Id, &studySet.AuthorId, &studySet.Name, &studySet.Description, &studySet.PhraseLanguage, &studySet.DefinitionLanguage); err != nil {
 			return nil, fmt.Errorf("failed to scan: %w", err)
 		}
-
 		studySets = append(studySets, &studySet)
 	}
 
 	return studySets, nil
 }
 
-func (r *StudySetRepo) GetById(ctx context.Context, studySetID int64) (*domain.StudySet, error) {
-	var studySet domain.StudySet
-
+func (r *StudySetRepo) GetById(ctx context.Context, studySetID int64) (*domain.StudySetRow, error) {
+	var studySet domain.StudySetRow
 	if err := r.query.getById.QueryRowContext(ctx, studySetID).Scan(&studySet.Id, &studySet.AuthorId, &studySet.Name, &studySet.Description, &studySet.PhraseLanguage, &studySet.DefinitionLanguage); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to query: %w", err)
 	}
-
 	return &studySet, nil
 }
 
-func (r *StudySetRepo) Insert(ctx context.Context, insertData *domain.InsertStudySetData) (*domain.StudySet, error) {
+func (r *StudySetRepo) Insert(ctx context.Context, insertData *domain.InsertStudySetData) (*domain.StudySetRow, error) {
 	res, err := r.query.insert.ExecContext(
 		ctx,
 		insertData.AuthorId,
@@ -136,7 +137,6 @@ func (r *StudySetRepo) Update(ctx context.Context, studySetID int64, updateData 
 	); err != nil {
 		return fmt.Errorf("failed to exec: %w", err)
 	}
-
 	return nil
 }
 
@@ -144,6 +144,14 @@ func (r *StudySetRepo) Delete(ctx context.Context, studySetID int64) error {
 	if _, err := r.query.delete.ExecContext(ctx, studySetID); err != nil {
 		return fmt.Errorf("failed to exec: %w", err)
 	}
-
 	return nil
+}
+
+func (r *StudySetRepo) Exists(ctx context.Context, studySetID int64) (bool, error) {
+	var exists int
+	res := r.query.exists.QueryRowContext(ctx, studySetID)
+	if err := res.Scan(&exists); err != nil {
+		return false, fmt.Errorf("failed to exec exists statement: %w", err)
+	}
+	return exists == 1, nil
 }
