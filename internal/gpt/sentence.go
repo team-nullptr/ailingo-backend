@@ -1,4 +1,4 @@
-package sentence
+package gpt
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"ailingo/internal/models"
+	"ailingo/internal/domain"
 	"ailingo/pkg/openai"
 )
 
@@ -25,16 +25,12 @@ var (
 	ErrGenerationUnsuccessful = errors.New("generation was not successful")
 )
 
-type Repo interface {
-	GenerateSentence(ctx context.Context, word models.Definition) (string, error)
-}
-
-type DefaultRepo struct {
+type SentenceRepo struct {
 	chatClient openai.ChatClient
 }
 
-func NewRepo(chatClient openai.ChatClient) Repo {
-	return &DefaultRepo{
+func NewSentenceRepo(chatClient openai.ChatClient) domain.SentenceRepo {
+	return &SentenceRepo{
 		chatClient: chatClient,
 	}
 }
@@ -47,27 +43,37 @@ type GenerationResult struct {
 }
 
 // GenerateSentence requests a new chat completion with the Sentence Generator Persona prompt.
-func (r DefaultRepo) GenerateSentence(ctx context.Context, definition models.Definition) (string, error) {
+func (r SentenceRepo) GenerateSentence(ctx context.Context, sentenceGenerationRequest *domain.SentenceGenerationRequest) (string, error) {
 	completion, err := r.chatClient.RequestCompletion(ctx, openai.CompletionChat{
 		Model: "gpt-3.5-turbo",
 		Messages: []openai.Message{
 			{Role: "system", Content: sentenceGeneratorSystem},
-			{Role: "user", Content: fmt.Sprintf("english phrase: %s\npolish meaning: %s", definition.Phrase, definition.Meaning)},
+			{
+				Role: "user",
+				Content: fmt.Sprintf(
+					"english phrase: %s\npolish meaning: %s",
+					sentenceGenerationRequest.Phrase,
+					sentenceGenerationRequest.Meaning,
+				)},
 		},
-		MaxTokens: 256,
+		MaxTokens: 300,
 	})
 	if err != nil {
 		return "", err
 	}
+
 	completionContent := completion.Choices[0].Message.Content
+
 	// TODO: Is it possible to have empty choices array?
 	var genResult GenerationResult
 	err = json.Unmarshal([]byte(completionContent), &genResult)
 	if err != nil {
 		return "", fmt.Errorf("%w: %w", ErrModelDelusions, err)
 	}
+
 	if genResult.Success {
 		return genResult.Sentence, nil
 	}
+
 	return "", fmt.Errorf("%w: %s", ErrGenerationUnsuccessful, genResult.Reason)
 }

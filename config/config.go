@@ -1,7 +1,6 @@
 package config
 
 import (
-	"flag"
 	"fmt"
 	"os"
 
@@ -24,12 +23,10 @@ type Config struct {
 	DeepLToken  string
 }
 
-// Load loads Config, using .env as the config source, and returns it.
-func Load() (*Config, error) {
-	dotenv := flag.Bool("dotenv", false, "configure with .env")
-	flag.Parse()
+// New loads Config, using .env as the config source, and returns it.
+func New(useDotenv bool) (*Config, error) {
 
-	if *dotenv {
+	if useDotenv {
 		if err := godotenv.Load(".env"); err != nil {
 			return nil, fmt.Errorf("failed to load .env: %w", err)
 		}
@@ -43,8 +40,8 @@ func Load() (*Config, error) {
 	return &Config{
 		Env:         env,
 		Port:        os.Getenv("PORT"),
-		TlsCert:     "./certs/" + os.Getenv("TLS_CERT"),
-		TlsKey:      "./certs/" + os.Getenv("TLS_KEY"),
+		TlsCert:     os.Getenv("TLS_CERT"),
+		TlsKey:      os.Getenv("TLS_KEY"),
 		DSN:         os.Getenv("DSN"),
 		ClerkToken:  os.Getenv("CLERK_TOKEN"),
 		OpenAIToken: os.Getenv("OPENAI_TOKEN"),
