@@ -30,18 +30,6 @@ type StudySet struct {
 	DefinitionLanguage string
 }
 
-// Populate populates study set information with that is not stored in study set table.
-func (r *StudySet) Populate(author Author) *StudySetWithAuthor {
-	return &StudySetWithAuthor{
-		Id:                 r.Id,
-		Author:             author,
-		Name:               r.Name,
-		Description:        r.Description,
-		PhraseLanguage:     r.PhraseLanguage,
-		DefinitionLanguage: r.DefinitionLanguage,
-	}
-}
-
 type InsertStudySetData struct {
 	AuthorId           string `json:"-" validate:"required"`
 	Name               string `json:"name" validate:"required,max=128"`

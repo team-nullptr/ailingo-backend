@@ -8,17 +8,19 @@ import (
 )
 
 type UserUseCase struct {
-	userRepo domain.UserRepo
+	dataStore domain.DataStore
 }
 
-func NewUserUseCase(userRepo domain.UserRepo) *UserUseCase {
+func NewUserUseCase(dataStore domain.DataStore) *UserUseCase {
 	return &UserUseCase{
-		userRepo: userRepo,
+		dataStore: dataStore,
 	}
 }
 
 func (uc *UserUseCase) Insert(ctx context.Context, insertData *domain.InsertUserData) error {
-	if err := uc.userRepo.Insert(ctx, insertData); err != nil {
+	userRepo := uc.dataStore.GetUserRepo()
+
+	if err := userRepo.Insert(ctx, insertData); err != nil {
 		return fmt.Errorf("%w: failed to insert the user: %w", err)
 	}
 
@@ -26,7 +28,9 @@ func (uc *UserUseCase) Insert(ctx context.Context, insertData *domain.InsertUser
 }
 
 func (uc *UserUseCase) Update(ctx context.Context, updateData *domain.UpdateUserData) error {
-	if err := uc.userRepo.Update(ctx, updateData); err != nil {
+	userRepo := uc.dataStore.GetUserRepo()
+
+	if err := userRepo.Update(ctx, updateData); err != nil {
 		return fmt.Errorf("%w: failed to update the user: %w", err)
 	}
 
@@ -34,7 +38,9 @@ func (uc *UserUseCase) Update(ctx context.Context, updateData *domain.UpdateUser
 }
 
 func (uc *UserUseCase) Delete(ctx context.Context, userID string) error {
-	if err := uc.userRepo.Delete(ctx, userID); err != nil {
+	userRepo := uc.dataStore.GetUserRepo()
+
+	if err := userRepo.Delete(ctx, userID); err != nil {
 		return fmt.Errorf("%w: failed to delete the user: %w", err)
 	}
 

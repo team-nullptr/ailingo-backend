@@ -1,7 +1,6 @@
 package app
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"log/slog"
@@ -68,33 +67,10 @@ func Run(cfg *config.Config) {
 	userService := auth.NewUserService(l, clerkClient)
 
 	// Repos
+	mysqlDataStore := mysql.NewDataStore(db)
 	sentenceRepo := gpt.NewSentenceDevRepo()
 	if cfg.Server.Env == config.EnvProd {
 		sentenceRepo = gpt.NewSentenceRepo(openai.NewChatClient(cfg.Services.OpenAIToken))
-	}
-
-	definitionRepo, err := mysql.NewDefinitionRepo(context.Background(), db)
-	if err != nil {
-		l.Error(fmt.Sprintf("app - Run - mysql.NewDefinitionRepo: %s", err))
-		os.Exit(1)
-	}
-
-	studySetRepo, err := mysql.NewStudySetRepo(context.Background(), db)
-	if err != nil {
-		l.Error(fmt.Sprintf("app - Run - mysql.NewStudySetRepo: %s", err))
-		os.Exit(1)
-	}
-
-	profileRepo, err := mysql.NewProfileRepo(context.Background(), db)
-	if err != nil {
-		l.Error(fmt.Sprintf("app - Run - mysql.NewProfileRepo: %s", err))
-		os.Exit(1)
-	}
-
-	userRepo, err := mysql.NewUserRepo(context.Background(), db)
-	if err != nil {
-		l.Error(fmt.Sprintf("app - Run - mysql.NewProfileRepo: %s", err))
-		os.Exit(1)
 	}
 
 	// Validator
@@ -106,10 +82,11 @@ func Run(cfg *config.Config) {
 		translationUseCase = usecase.NewTranslateUseCase(deepl.NewClient(cfg.Services.DeepLToken), validate)
 	}
 	chatUseCase := usecase.NewChatUseCase(sentenceRepo, validate)
-	studySetUseCase := usecase.NewStudySetUseCase(studySetRepo, userService, validate)
-	definitionUseCase := usecase.NewDefinitionUseCase(definitionRepo, studySetRepo, validate)
-	profileUseCase := usecase.NewProfileUseCase(studySetRepo, profileRepo, userService)
-	userUseCase := usecase.NewUserUseCase(userRepo)
+
+	studySetUseCase := usecase.NewStudySetUseCase(mysqlDataStore, userService, validate)
+	definitionUseCase := usecase.NewDefinitionUseCase(mysqlDataStore, validate)
+	profileUseCase := usecase.NewProfileUseCase(mysqlDataStore, userService)
+	userUseCase := usecase.NewUserUseCase(mysqlDataStore)
 
 	// Controllers
 	ai := controller.NewAiController(
