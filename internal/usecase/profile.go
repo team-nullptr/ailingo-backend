@@ -15,21 +15,21 @@ var (
 )
 
 type ProfileUseCase struct {
-	studySetRepo domain.StudySetRepo
-	profileRepo  domain.ProfileRepo
-	userService  *auth.UserService
+	dataStore   domain.DataStore
+	userService *auth.UserService
 }
 
-func NewProfileUseCase(studySetRepo domain.StudySetRepo, profileRepo domain.ProfileRepo, userService *auth.UserService) *ProfileUseCase {
+func NewProfileUseCase(dataStore domain.DataStore, userService *auth.UserService) *ProfileUseCase {
 	return &ProfileUseCase{
-		studySetRepo: studySetRepo,
-		profileRepo:  profileRepo,
-		userService:  userService,
+		dataStore:   dataStore,
+		userService: userService,
 	}
 }
 
 func (uc *ProfileUseCase) GetStarredStudySets(ctx context.Context, userID string) ([]*domain.StudySetWithAuthor, error) {
-	studySets, err := uc.studySetRepo.GetStarredBy(ctx, userID)
+	studySetRepo := uc.dataStore.GetStudySetRepo()
+
+	studySets, err := studySetRepo.GetStarredBy(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to get all starred study sets: %w", ErrRepoFailed, err)
 	}
@@ -38,7 +38,9 @@ func (uc *ProfileUseCase) GetStarredStudySets(ctx context.Context, userID string
 }
 
 func (uc *ProfileUseCase) GetCreatedStudySets(ctx context.Context, userID string) ([]*domain.StudySet, error) {
-	studySets, err := uc.studySetRepo.GetCreatedBy(ctx, userID)
+	studySetRepo := uc.dataStore.GetStudySetRepo()
+
+	studySets, err := studySetRepo.GetCreatedBy(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get created study sets: %w", err)
 	}
@@ -47,26 +49,38 @@ func (uc *ProfileUseCase) GetCreatedStudySets(ctx context.Context, userID string
 }
 
 func (uc *ProfileUseCase) StarStudySet(ctx context.Context, userID string, studySetID int64) error {
-	parentExists, err := uc.studySetRepo.Exists(ctx, studySetID)
-	if err != nil {
-		return fmt.Errorf("%w: failed to check if parent study set exists: %w", ErrRepoFailed, err)
-	}
-	if !parentExists {
-		return ErrNotFound
-	}
+	err := uc.dataStore.Atomic(ctx, func(ds domain.DataStore) error {
+		studySetRepo := uc.dataStore.GetStudySetRepo()
+		profileRepo := uc.dataStore.GetProfileRepo()
 
-	if err := uc.profileRepo.InsertStar(ctx, userID, studySetID); err != nil {
-		if errors.Is(err, mysql.ErrDuplicateRow) {
-			return ErrAlreadyStarred
+		parentExists, err := studySetRepo.Exists(ctx, studySetID)
+		if err != nil {
+			return fmt.Errorf("%w: failed to check if parent study set exists: %w", ErrRepoFailed, err)
 		}
-		return fmt.Errorf("%w: failed to insert a star: %w", ErrRepoFailed, err)
+		if !parentExists {
+			return ErrNotFound
+		}
+
+		if err := profileRepo.InsertStar(ctx, userID, studySetID); err != nil {
+			if errors.Is(err, mysql.ErrDuplicateRow) {
+				return ErrAlreadyStarred
+			}
+			return fmt.Errorf("%w: failed to insert a star: %w", ErrRepoFailed, err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("atomic operation failed: %w", err)
 	}
 
 	return nil
 }
 
 func (uc *ProfileUseCase) InstarStudySet(ctx context.Context, userID string, studySetID int64) error {
-	if err := uc.profileRepo.DeleteStar(ctx, userID, studySetID); err != nil {
+	profileRepo := uc.dataStore.GetProfileRepo()
+	if err := profileRepo.DeleteStar(ctx, userID, studySetID); err != nil {
 		return fmt.Errorf("failed to delete the start: %w", err)
 	}
 	return nil

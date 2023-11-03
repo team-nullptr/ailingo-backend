@@ -15,52 +15,46 @@ type userQueries struct {
 	delete  *sql.Stmt
 }
 
-func newUserQueries(ctx context.Context, db *sql.DB) (*userQueries, error) {
-	getByIdStmt, err := db.PrepareContext(ctx, "SELECT id, username, image_url FROM user WHERE id = ?")
-	if err != nil {
-		return nil, fmt.Errorf("getById query: %w", err)
-	}
+// getUserById queries for a user with the given id.
+const getUserById = `
+SELECT id, username, image_url
+FROM user
+WHERE id = ?
+`
 
-	insertStmt, err := db.PrepareContext(ctx, "INSERT INTO user (id, username, image_url) VALUES (?, ?, ?)")
-	if err != nil {
-		return nil, fmt.Errorf("insert query: %w", err)
-	}
+// insertUser inserts a new user.
+const insertUser = `
+INSERT INTO user (id, username, image_url)
+VALUES (?, ?, ?)
+`
 
-	updateStmt, err := db.PrepareContext(ctx, "UPDATE user SET username = ?, image_url = ? WHERE id = ?")
-	if err != nil {
-		return nil, fmt.Errorf("update query: %w", err)
-	}
+// updateUserById updates user by id.
+const updateUserById = `
+UPDATE user
+SET username  = ?,
+    image_url = ?
+WHERE id = ?
+`
 
-	deleteStmt, err := db.PrepareContext(ctx, "DELETE FROM user WHERE id = ?")
-	if err != nil {
-		return nil, fmt.Errorf("delete query: %w", err)
-	}
-
-	return &userQueries{
-		getById: getByIdStmt,
-		insert:  insertStmt,
-		update:  updateStmt,
-		delete:  deleteStmt,
-	}, nil
-}
+// deleteUserById deletes user by id.
+const deleteUserById = `
+DELETE
+FROM user
+WHERE id = ?
+`
 
 type UserRepo struct {
-	query *userQueries
+	db DBTX
 }
 
-func NewUserRepo(ctx context.Context, db *sql.DB) (*UserRepo, error) {
-	query, err := newUserQueries(ctx, db)
-	if err != nil {
-		return nil, err
-	}
-
+func NewUserRepo(db DBTX) *UserRepo {
 	return &UserRepo{
-		query: query,
-	}, nil
+		db: db,
+	}
 }
 
 func (r *UserRepo) GetById(ctx context.Context, userID string) (*domain.UserRow, error) {
-	row := r.query.getById.QueryRowContext(ctx, userID)
+	row := r.db.QueryRowContext(ctx, getUserById, userID)
 
 	var user domain.UserRow
 	if err := row.Scan(&user.Id, &user.Username, &user.ImageURL); err != nil {
@@ -71,21 +65,21 @@ func (r *UserRepo) GetById(ctx context.Context, userID string) (*domain.UserRow,
 }
 
 func (r *UserRepo) Insert(ctx context.Context, insertData *domain.InsertUserData) error {
-	if _, err := r.query.insert.ExecContext(ctx, insertData.Id, insertData.Username, insertData.ImageURL); err != nil {
+	if _, err := r.db.ExecContext(ctx, insertUser, insertData.Id, insertData.Username, insertData.ImageURL); err != nil {
 		return fmt.Errorf("failed to exec: %w", err)
 	}
 	return nil
 }
 
 func (r *UserRepo) Update(ctx context.Context, updateData *domain.UpdateUserData) error {
-	if _, err := r.query.update.ExecContext(ctx, updateData.Username, updateData.ImageURL, updateData.Id); err != nil {
+	if _, err := r.db.ExecContext(ctx, updateUserById, updateData.Username, updateData.ImageURL, updateData.Id); err != nil {
 		return fmt.Errorf("failed to exec: %w", err)
 	}
 	return nil
 }
 
 func (r *UserRepo) Delete(ctx context.Context, userID string) error {
-	if _, err := r.query.delete.ExecContext(ctx, userID); err != nil {
+	if _, err := r.db.ExecContext(ctx, deleteUserById, userID); err != nil {
 		return fmt.Errorf("failed to exec: %w", err)
 	}
 	return nil

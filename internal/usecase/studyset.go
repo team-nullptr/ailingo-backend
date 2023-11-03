@@ -11,36 +11,42 @@ import (
 )
 
 type StudySetUseCase struct {
-	studySetRepo domain.StudySetRepo
-	userService  *auth.UserService
-	validate     *validator.Validate
+	dataStore   domain.DataStore
+	userService *auth.UserService
+	validate    *validator.Validate
 }
 
 // NewStudySetUseCase creates a new instance of StudySetUseCaseImpl.
-func NewStudySetUseCase(studySetRepo domain.StudySetRepo, userService *auth.UserService, validate *validator.Validate) domain.StudySetUseCase {
+func NewStudySetUseCase(dataStore domain.DataStore, userService *auth.UserService, validate *validator.Validate) domain.StudySetUseCase {
 	return &StudySetUseCase{
-		studySetRepo: studySetRepo,
-		userService:  userService,
-		validate:     validate,
+		dataStore:   dataStore,
+		userService: userService,
+		validate:    validate,
 	}
 }
 
 func (uc *StudySetUseCase) GetAll(ctx context.Context) ([]*domain.StudySetWithAuthor, error) {
-	studySets, err := uc.studySetRepo.GetAll(ctx)
+	studySetRepo := uc.dataStore.GetStudySetRepo()
+
+	studySets, err := studySetRepo.GetAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to get study sets: %w", ErrRepoFailed, err)
 	}
+
 	return studySets, nil
 }
 
 func (uc *StudySetUseCase) GetById(ctx context.Context, studySetID int64) (*domain.StudySetWithAuthor, error) {
-	studySet, err := uc.studySetRepo.GetById(ctx, studySetID)
+	studySetRepo := uc.dataStore.GetStudySetRepo()
+
+	studySet, err := studySetRepo.GetById(ctx, studySetID)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to get the study set: %w", ErrRepoFailed, err)
 	}
 	if studySet == nil {
 		return nil, ErrNotFound
 	}
+
 	return studySet, nil
 }
 
@@ -48,10 +54,14 @@ func (uc *StudySetUseCase) Create(ctx context.Context, insertData *domain.Insert
 	if err := uc.validate.Struct(insertData); err != nil {
 		return 0, fmt.Errorf("%w: invalid insert data: %w", ErrValidation, err)
 	}
-	insertedId, err := uc.studySetRepo.Insert(ctx, insertData)
+
+	studySetRepo := uc.dataStore.GetStudySetRepo()
+
+	insertedId, err := studySetRepo.Insert(ctx, insertData)
 	if err != nil {
 		return 0, fmt.Errorf("%w: failed to create the study set: %w", ErrRepoFailed, err)
 	}
+
 	return insertedId, nil
 }
 
@@ -59,27 +69,52 @@ func (uc *StudySetUseCase) Update(ctx context.Context, userID string, studySetID
 	if err := uc.validate.Struct(updateData); err != nil {
 		return fmt.Errorf("%w: invalid update data: %w", ErrValidation, err)
 	}
-	if err := uc.checkStudySetOwnership(ctx, userID, studySetID); err != nil {
-		return err
+
+	err := uc.dataStore.Atomic(ctx, func(ds domain.DataStore) error {
+		studySetRepo := uc.dataStore.GetStudySetRepo()
+
+		if err := uc.checkStudySetOwnership(ctx, studySetRepo, userID, studySetID); err != nil {
+			return err
+		}
+
+		if err := studySetRepo.Update(ctx, studySetID, updateData); err != nil {
+			return fmt.Errorf("%w: Update failed: %w", ErrRepoFailed, err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("atomic operation failed: %w", err)
 	}
-	if err := uc.studySetRepo.Update(ctx, studySetID, updateData); err != nil {
-		return fmt.Errorf("%w: Update failed: %w", ErrRepoFailed, err)
-	}
+
 	return nil
 }
 
 func (uc *StudySetUseCase) Delete(ctx context.Context, userID string, studySetID int64) error {
-	if err := uc.checkStudySetOwnership(ctx, userID, studySetID); err != nil {
-		return err
+	err := uc.dataStore.Atomic(ctx, func(ds domain.DataStore) error {
+		studySetRepo := uc.dataStore.GetStudySetRepo()
+
+		if err := uc.checkStudySetOwnership(ctx, studySetRepo, userID, studySetID); err != nil {
+			return err
+		}
+
+		if err := studySetRepo.Delete(ctx, studySetID); err != nil {
+			return fmt.Errorf("%w: Delete failed: %w", ErrRepoFailed, err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("atomic operation failed: %w", err)
 	}
-	if err := uc.studySetRepo.Delete(ctx, studySetID); err != nil {
-		return fmt.Errorf("%w: Delete failed: %w", ErrRepoFailed, err)
-	}
+
 	return nil
 }
 
-func (uc *StudySetUseCase) checkStudySetOwnership(ctx context.Context, userID string, studySetID int64) error {
-	studySet, err := uc.studySetRepo.GetById(ctx, studySetID)
+func (uc *StudySetUseCase) checkStudySetOwnership(ctx context.Context, studySetRepo domain.StudySetRepo, userID string, studySetID int64) error {
+	studySet, err := studySetRepo.GetById(ctx, studySetID)
 	if err != nil {
 		return fmt.Errorf("%w: failed to get the study set: %w", ErrRepoFailed, err)
 	}
