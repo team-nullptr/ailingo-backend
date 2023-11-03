@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log/slog"
@@ -21,6 +22,7 @@ import (
 	"ailingo/internal/gpt"
 	"ailingo/internal/mysql"
 	"ailingo/internal/usecase"
+	"ailingo/internal/webhook"
 	"ailingo/pkg/auth"
 	"ailingo/pkg/deepl"
 	"ailingo/pkg/httpserver"
@@ -45,41 +47,53 @@ func connectToDatabase(dataSourceName string) (*sql.DB, error) {
 // Run starts the application's.
 func Run(cfg *config.Config) {
 	// Logger
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	l := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	// Database
 	// TODO: Implement connection retries
-	db, err := connectToDatabase(cfg.DSN)
+	db, err := connectToDatabase(cfg.Database.DSN)
 	if err != nil {
-		logger.Error(fmt.Sprintf("app - Run - connectToDatabase: %s", err))
+		l.Error(fmt.Sprintf("app - Run - connectToDatabase: %s", err))
 		os.Exit(1)
 	}
 
 	// Clerk
-	clerkClient, err := clerk.NewClient(cfg.ClerkToken)
+	clerkClient, err := clerk.NewClient(cfg.Services.ClerkToken)
 	if err != nil {
-		logger.Error(fmt.Sprintf("app - Run - clerk.NewClient: %s", err))
+		l.Error(fmt.Sprintf("app - Run - clerk.NewClient: %s", err))
 		os.Exit(1)
 	}
 
-	withClaims := auth.WithClaims(logger, clerkClient)
-	userService := auth.NewUserService(logger, clerkClient)
+	withClaims := auth.WithClaims(l, clerkClient)
+	userService := auth.NewUserService(l, clerkClient)
 
 	// Repos
 	sentenceRepo := gpt.NewSentenceDevRepo()
-	if cfg.Env == config.ENV_PROD {
-		sentenceRepo = gpt.NewSentenceRepo(openai.NewChatClient(cfg.OpenAIToken))
+	if cfg.Server.Env == config.EnvProd {
+		sentenceRepo = gpt.NewSentenceRepo(openai.NewChatClient(cfg.Services.OpenAIToken))
 	}
 
-	definitionRepo, err := mysql.NewDefinitionRepo(db)
+	definitionRepo, err := mysql.NewDefinitionRepo(context.Background(), db)
 	if err != nil {
-		logger.Error(fmt.Sprintf("app - Run - mysql.NewDefinitionRepo: %s", err))
+		l.Error(fmt.Sprintf("app - Run - mysql.NewDefinitionRepo: %s", err))
 		os.Exit(1)
 	}
 
-	studySetRepo, err := mysql.NewStudySetRepo(db)
+	studySetRepo, err := mysql.NewStudySetRepo(context.Background(), db)
 	if err != nil {
-		logger.Error(fmt.Sprintf("app - Run - mysql.NewStudySetRepo: %s", err))
+		l.Error(fmt.Sprintf("app - Run - mysql.NewStudySetRepo: %s", err))
+		os.Exit(1)
+	}
+
+	profileRepo, err := mysql.NewProfileRepo(context.Background(), db)
+	if err != nil {
+		l.Error(fmt.Sprintf("app - Run - mysql.NewProfileRepo: %s", err))
+		os.Exit(1)
+	}
+
+	userRepo, err := mysql.NewUserRepo(context.Background(), db)
+	if err != nil {
+		l.Error(fmt.Sprintf("app - Run - mysql.NewProfileRepo: %s", err))
 		os.Exit(1)
 	}
 
@@ -88,26 +102,36 @@ func Run(cfg *config.Config) {
 
 	// Use cases
 	translationUseCase := usecase.NewTranslateDevUseCase()
-	if cfg.Env == config.ENV_PROD {
-		translationUseCase = usecase.NewTranslateUseCase(deepl.NewClient(cfg.DeepLToken), validate)
+	if cfg.Server.Env == config.EnvProd {
+		translationUseCase = usecase.NewTranslateUseCase(deepl.NewClient(cfg.Services.DeepLToken), validate)
 	}
 	chatUseCase := usecase.NewChatUseCase(sentenceRepo, validate)
 	studySetUseCase := usecase.NewStudySetUseCase(studySetRepo, userService, validate)
-	definitionUseCase := usecase.NewDefinitionUseCase(definitionRepo, studySetRepo)
+	definitionUseCase := usecase.NewDefinitionUseCase(definitionRepo, studySetRepo, validate)
+	profileUseCase := usecase.NewProfileUseCase(studySetRepo, profileRepo, userService)
+	userUseCase := usecase.NewUserUseCase(userRepo)
 
 	// Controllers
 	ai := controller.NewAiController(
-		logger,
+		l,
 		chatUseCase,
 		translationUseCase,
 	)
 
 	studySet := controller.NewStudySetController(
-		logger,
+		l,
 		userService,
 		studySetUseCase,
 		definitionUseCase,
 	)
+
+	me := controller.NewMeController(l, profileUseCase, userService)
+
+	clerkWebhook, err := webhook.NewClerkWebhook(l, cfg, userUseCase)
+	if err != nil {
+		l.Error(fmt.Sprintf("app - Run - webhook.NewClerkWebhook: %s", err))
+		os.Exit(1)
+	}
 
 	// Router
 	reqLogger := httplog.RequestLogger(httplog.NewLogger("api", httplog.Options{
@@ -135,16 +159,23 @@ func Run(cfg *config.Config) {
 		reqLogger,
 		corsOpts,
 	)
-	r.With(withClaims).Route("/ai", ai.Router)
+
 	r.Route("/study-sets", studySet.Router(withClaims))
+	r.With(withClaims).Route("/ai", ai.Router)
+	r.With(withClaims).Route("/me", me.Router)
+
+	// Webhooks
+	r.Post("/clerk/webhook", clerkWebhook.Webhook)
 
 	// Server
 	server := httpserver.New(
+		httpserver.WithAddr(fmt.Sprintf(":%s", cfg.Server.Port)),
+		httpserver.WithReadTimeout(5*time.Second),
+		httpserver.WithWriteTimeout(10*time.Second),
 		httpserver.WithHandler(r),
-		httpserver.WithAddr(fmt.Sprintf(":%s", cfg.Port)),
 	)
 
-	server.Start(cfg.TlsCert, cfg.TlsKey)
+	server.Start(cfg.Server.TlsCert, cfg.Server.TlsKey)
 
 	// Interrupt signal
 	interrupt := make(chan os.Signal, 1)
@@ -152,13 +183,13 @@ func Run(cfg *config.Config) {
 
 	select {
 	case s := <-interrupt:
-		logger.Info(fmt.Sprintf("app - Run - signal: %s", s.String()))
+		l.Info(fmt.Sprintf("app - Run - signal: %s", s.String()))
 	case err := <-server.Notify():
-		logger.Error(fmt.Sprintf("app - Run - httpServer.Notify: %s", err))
+		l.Error(fmt.Sprintf("app - Run - httpServer.Notify: %s", err))
 	}
 
 	// Graceful shutdown
 	if err := server.Shutdown(); err != nil {
-		logger.Error(fmt.Sprintf("app - Run - httpServer.Shutdown: %s", err))
+		l.Error(fmt.Sprintf("app - Run - httpServer.Shutdown: %s", err))
 	}
 }

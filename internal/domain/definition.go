@@ -23,9 +23,9 @@ func (r *DefinitionRow) Populate() *Definition {
 }
 
 type InsertDefinitionData struct {
-	Phrase    string   `json:"phrase"`
-	Meaning   string   `json:"meaning"`
-	Sentences []string `json:"sentences"`
+	Phrase    string   `json:"phrase" validate:"required,max=256"`
+	Meaning   string   `json:"meaning" validate:"required,max=256"`
+	Sentences []string `json:"sentences" validate:"required,dive,required,max=300"`
 }
 
 type UpdateDefinitionData InsertDefinitionData

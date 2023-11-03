@@ -31,6 +31,18 @@ func WithAddr(addr string) Option {
 	}
 }
 
+func WithReadTimeout(timeout time.Duration) Option {
+	return func(s *Server) {
+		s.server.ReadTimeout = timeout
+	}
+}
+
+func WithWriteTimeout(timeout time.Duration) Option {
+	return func(s *Server) {
+		s.server.WriteTimeout = timeout
+	}
+}
+
 func New(opts ...Option) *Server {
 	httpserver := &http.Server{
 		TLSConfig: &tls.Config{

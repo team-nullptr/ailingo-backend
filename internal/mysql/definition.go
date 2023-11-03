@@ -17,23 +17,23 @@ type definitionQueries struct {
 	delete *sql.Stmt
 }
 
-func newDefinitionQueries(db *sql.DB) (*definitionQueries, error) {
-	getAllStmt, err := db.Prepare("SELECT id, phrase, meaning, sentences FROM definition WHERE study_set_id = ?")
+func newDefinitionQueries(ctx context.Context, db *sql.DB) (*definitionQueries, error) {
+	getAllStmt, err := db.PrepareContext(ctx, "SELECT id, phrase, meaning, sentences FROM definition WHERE study_set_id = ?")
 	if err != nil {
 		return nil, fmt.Errorf("getAll query: %w", err)
 	}
 
-	insertStmt, err := db.Prepare(`INSERT INTO definition (study_set_id, phrase, meaning, sentences) VALUES (?, ?, ?, ?)`)
+	insertStmt, err := db.PrepareContext(ctx, `INSERT INTO definition (study_set_id, phrase, meaning, sentences) VALUES (?, ?, ?, ?)`)
 	if err != nil {
 		return nil, fmt.Errorf("insert query: %w", err)
 	}
 
-	updateStmt, err := db.Prepare("UPDATE definition SET phrase = ?, meaning = ?, sentences = ? WHERE study_set_id = ? AND id = ?")
+	updateStmt, err := db.PrepareContext(ctx, "UPDATE definition SET phrase = ?, meaning = ?, sentences = ? WHERE study_set_id = ? AND id = ?")
 	if err != nil {
 		return nil, fmt.Errorf("update query: %w", err)
 	}
 
-	deleteStmt, err := db.Prepare("DELETE FROM definition WHERE study_set_id = ? AND id = ?")
+	deleteStmt, err := db.PrepareContext(ctx, "DELETE FROM definition WHERE study_set_id = ? AND id = ?")
 	if err != nil {
 		return nil, fmt.Errorf("delete query: %w", err)
 	}
@@ -51,8 +51,8 @@ type DefinitionRepo struct {
 	query *definitionQueries
 }
 
-func NewDefinitionRepo(db *sql.DB) (domain.DefinitionRepo, error) {
-	query, err := newDefinitionQueries(db)
+func NewDefinitionRepo(ctx context.Context, db *sql.DB) (domain.DefinitionRepo, error) {
+	query, err := newDefinitionQueries(ctx, db)
 	if err != nil {
 		return nil, err
 	}
@@ -80,9 +80,11 @@ func (r *DefinitionRepo) GetAllFor(ctx context.Context, parentStudySetID int64) 
 		if err := rows.Scan(&definition.Id, &definition.Phrase, &definition.Meaning, &sentencesRaw); err != nil {
 			return nil, fmt.Errorf("failed to scan: %w", err)
 		}
+
 		if err := json.Unmarshal(sentencesRaw, &definition.Sentences); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal sentences: %w", err)
 		}
+
 		definitions = append(definitions, &definition)
 	}
 
@@ -94,9 +96,11 @@ func (r *DefinitionRepo) Insert(ctx context.Context, parentStudySetID int64, ins
 	if err != nil {
 		return fmt.Errorf("failed to marshal sentences array")
 	}
+
 	if _, err = r.query.insert.ExecContext(ctx, parentStudySetID, insertData.Phrase, insertData.Meaning, sentencesJson); err != nil {
 		return fmt.Errorf("failed to exec: %w", err)
 	}
+
 	return nil
 }
 
@@ -105,9 +109,11 @@ func (r *DefinitionRepo) Update(ctx context.Context, parentStudySetID int64, def
 	if err != nil {
 		return fmt.Errorf("failed to marshal sentences array")
 	}
+
 	if _, err := r.query.update.ExecContext(ctx, updateData.Phrase, updateData.Meaning, sentencesJson, parentStudySetID, definitionID); err != nil {
 		return fmt.Errorf("failed to update the definition: %w", err)
 	}
+
 	return nil
 }
 

@@ -1,13 +1,12 @@
 package controller
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -35,24 +34,27 @@ func NewStudySetController(l *slog.Logger, userService *auth.UserService, studyS
 
 func (c *StudySetController) Router(withClaims func(next http.Handler) http.Handler) func(r chi.Router) {
 	return func(r chi.Router) {
-		r.Get("/", c.GetAllSummary)
-		r.With(withClaims).Post("/", c.Create)
+		r.Get("/", c.GetAll)
 		r.Get("/{studySetID}", c.GetById)
-		r.With(withClaims).Put("/{studySetID}", c.Update)
-		r.With(withClaims).Delete("/{studySetID}", c.Delete)
-
-		// TODO: We could make a separate controller for /definitions endpoints
 		r.Get("/{parentStudySetID}/definitions", c.GetDefinitions)
-		r.With(withClaims).Post("/{parentStudySetID}/definitions", c.CreateDefinition)
-		r.With(withClaims).Put("/{parentStudySetID}/definitions/{definitionID}", c.UpdateDefinition)
-		r.With(withClaims).Delete("/{parentStudySetID}/definitions/{definitionID}", c.DeleteDefinition)
+
+		r.Route("/", func(r chi.Router) {
+			r.Use(withClaims)
+			r.Post("/", c.Create)
+			r.Put("/{studySetID}", c.Update)
+			r.Delete("/{studySetID}", c.Delete)
+
+			// TODO: We could make a separate controller for /definitions endpoints
+			r.Post("/{parentStudySetID}/definitions", c.CreateDefinition)
+			r.Put("/{parentStudySetID}/definitions/{definitionID}", c.UpdateDefinition)
+			r.Delete("/{parentStudySetID}/definitions/{definitionID}", c.DeleteDefinition)
+		})
 	}
 }
 
-// GetAllSummary is an endpoint handler for getting a summary for all existing study sets.
-func (c *StudySetController) GetAllSummary(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), time.Second*10)
-	defer cancel()
+// GetAll is an endpoint handler for getting a summary for all existing study sets.
+func (c *StudySetController) GetAll(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 
 	studySets, err := c.studySetUseCase.GetAll(ctx)
 	if err != nil {
@@ -65,8 +67,7 @@ func (c *StudySetController) GetAllSummary(w http.ResponseWriter, r *http.Reques
 
 // GetById is an endpoint handler for getting full information about a specific study set.
 func (c *StudySetController) GetById(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), time.Second*10)
-	defer cancel()
+	ctx := r.Context()
 
 	studySetID, err := strconv.ParseInt(chi.URLParam(r, "studySetID"), 10, 64)
 	if err != nil {
@@ -94,8 +95,7 @@ func (c *StudySetController) GetById(w http.ResponseWriter, r *http.Request) {
 
 // Create is an endpoint handler for creating a new study set.
 func (c *StudySetController) Create(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), time.Second*10)
-	defer cancel()
+	ctx := r.Context()
 
 	user, err := c.userService.GetUserFromContext(ctx)
 	if err != nil {
@@ -108,6 +108,8 @@ func (c *StudySetController) Create(w http.ResponseWriter, r *http.Request) {
 			apiutil.Err(c.l, w, err)
 		}
 	}
+
+	fmt.Print(user.ID)
 
 	var insertData domain.InsertStudySetData
 	if err := json.NewDecoder(r.Body).Decode(&insertData); err != nil {
@@ -122,7 +124,7 @@ func (c *StudySetController) Create(w http.ResponseWriter, r *http.Request) {
 	// TODO: Logic leaking to the controller
 	insertData.AuthorId = user.ID
 
-	createdStudySet, err := c.studySetUseCase.Create(ctx, &insertData)
+	createdID, err := c.studySetUseCase.Create(ctx, &insertData)
 	if err != nil {
 		if errors.Is(err, usecase.ErrValidation) {
 			apiutil.Err(c.l, w, apiutil.ApiError{
@@ -136,13 +138,12 @@ func (c *StudySetController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiutil.Json(c.l, w, http.StatusCreated, createdStudySet)
+	apiutil.Json(c.l, w, http.StatusCreated, map[string]int64{"createdId": createdID})
 }
 
 // Update is an endpoint for replacing data of existing study set.
 func (c *StudySetController) Update(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), time.Second*10)
-	defer cancel()
+	ctx := r.Context()
 
 	user, err := c.userService.GetUserFromContext(ctx)
 	if err != nil {
@@ -177,7 +178,7 @@ func (c *StudySetController) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := c.studySetUseCase.Update(ctx, studySetID, user.ID, &updateData); err != nil {
+	if err := c.studySetUseCase.Update(ctx, user.ID, studySetID, &updateData); err != nil {
 		if errors.Is(err, usecase.ErrNotFound) {
 			apiutil.Err(c.l, w, apiutil.ApiError{
 				Status: http.StatusNotFound,
@@ -199,8 +200,7 @@ func (c *StudySetController) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete is an endpoint for deleting a study set.
 func (c *StudySetController) Delete(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), time.Second*10)
-	defer cancel()
+	ctx := r.Context()
 
 	user, err := c.userService.GetUserFromContext(ctx)
 	if err != nil {
@@ -225,7 +225,7 @@ func (c *StudySetController) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := c.studySetUseCase.Delete(ctx, studySetID, user.ID); err != nil {
+	if err := c.studySetUseCase.Delete(ctx, user.ID, studySetID); err != nil {
 		if errors.Is(err, usecase.ErrNotFound) {
 			apiutil.Err(c.l, w, apiutil.ApiError{
 				Status: http.StatusNotFound,
@@ -245,9 +245,9 @@ func (c *StudySetController) Delete(w http.ResponseWriter, r *http.Request) {
 	apiutil.Empty(w, http.StatusOK)
 }
 
+// GetDefinitions is an endpoint handler for getting all the definitions for a specific study set.
 func (c *StudySetController) GetDefinitions(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
+	ctx := r.Context()
 
 	parentStudySetID, err := strconv.ParseInt(chi.URLParam(r, "parentStudySetID"), 10, 64)
 	if err != nil {
@@ -273,9 +273,9 @@ func (c *StudySetController) GetDefinitions(w http.ResponseWriter, r *http.Reque
 	apiutil.Json(c.l, w, http.StatusOK, definitions)
 }
 
+// CreateDefinition is an endpoint handler for creating a new definitions for a specific study set.
 func (c *StudySetController) CreateDefinition(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
+	ctx := r.Context()
 
 	user, err := c.userService.GetUserFromContext(ctx)
 	if err != nil {
@@ -322,9 +322,9 @@ func (c *StudySetController) CreateDefinition(w http.ResponseWriter, r *http.Req
 	apiutil.Empty(w, http.StatusCreated)
 }
 
+// UpdateDefinition is an endpoint handler for updating definitions.
 func (c *StudySetController) UpdateDefinition(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
+	ctx := r.Context()
 
 	user, err := c.userService.GetUserFromContext(ctx)
 	if err != nil {
@@ -380,9 +380,9 @@ func (c *StudySetController) UpdateDefinition(w http.ResponseWriter, r *http.Req
 	apiutil.Empty(w, http.StatusOK)
 }
 
+// DeleteDefinition is an endpoint handler for deleting definitions.
 func (c *StudySetController) DeleteDefinition(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
+	ctx := r.Context()
 
 	user, err := c.userService.GetUserFromContext(ctx)
 	if err != nil {

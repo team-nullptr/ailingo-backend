@@ -1,12 +1,10 @@
 package controller
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -36,8 +34,7 @@ func (c *AiController) Router(r chi.Router) {
 
 // GenerateSentence is an endpoint handler for generating a sentence containing submitted word.
 func (c *AiController) GenerateSentence(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), time.Second*30)
-	defer cancel()
+	ctx := r.Context()
 
 	var sentenceGenerationRequest domain.SentenceGenerationRequest
 	if err := json.NewDecoder(r.Body).Decode(&sentenceGenerationRequest); err != nil {
@@ -70,8 +67,7 @@ func (c *AiController) GenerateSentence(w http.ResponseWriter, r *http.Request) 
 
 // Translate is an endpoint handler for translating words using DeepL.
 func (c *AiController) Translate(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), time.Second*30)
-	defer cancel()
+	ctx := r.Context()
 
 	var body domain.TranslateRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
