@@ -8,19 +8,32 @@ import (
 )
 
 const (
-	ENV_PROD = "PROD"
+	EnvProd = "PROD"
 )
+
+type Server struct {
+	Env     string
+	Port    string
+	TlsCert string
+	TlsKey  string
+}
+
+type Database struct {
+	DSN string
+}
+
+type Services struct {
+	DeepLToken         string
+	OpenAIToken        string
+	ClerkToken         string
+	ClerkWebhookSecret string
+}
 
 // Config stores the app configuration.
 type Config struct {
-	Env         string
-	Port        string
-	TlsCert     string
-	TlsKey      string
-	DSN         string
-	ClerkToken  string
-	OpenAIToken string
-	DeepLToken  string
+	Server   Server
+	Database Database
+	Services Services
 }
 
 // New loads Config, using .env as the config source, and returns it.
@@ -38,13 +51,20 @@ func New(useDotenv bool) (*Config, error) {
 	}
 
 	return &Config{
-		Env:         env,
-		Port:        os.Getenv("PORT"),
-		TlsCert:     os.Getenv("TLS_CERT"),
-		TlsKey:      os.Getenv("TLS_KEY"),
-		DSN:         os.Getenv("DSN"),
-		ClerkToken:  os.Getenv("CLERK_TOKEN"),
-		OpenAIToken: os.Getenv("OPENAI_TOKEN"),
-		DeepLToken:  os.Getenv("DEEPL_TOKEN"),
+		Server: Server{
+			Env:     env,
+			Port:    os.Getenv("PORT"),
+			TlsCert: os.Getenv("TLS_CERT"),
+			TlsKey:  os.Getenv("TLS_KEY"),
+		},
+		Database: Database{
+			DSN: os.Getenv("DSN"),
+		},
+		Services: Services{
+			ClerkToken:         os.Getenv("CLERK_TOKEN"),
+			ClerkWebhookSecret: os.Getenv("CLERK_WEBHOOK_SECRET"),
+			OpenAIToken:        os.Getenv("OPENAI_TOKEN"),
+			DeepLToken:         os.Getenv("DEEPL_TOKEN"),
+		},
 	}, nil
 }

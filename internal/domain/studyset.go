@@ -2,44 +2,28 @@ package domain
 
 import (
 	"context"
-
-	"github.com/clerkinc/clerk-sdk-go/clerk"
 )
 
 // Author represents user information attached to study set.
 type Author struct {
-	ProfileImageURL string `json:"profileImageUrl"`
-	Username        string `json:"username"`
+	Id       string `json:"id"`
+	ImageURL string `json:"imageUrl"`
+	Username string `json:"username"`
 }
 
-// AuthorFromClerkUser creates a new Author for the given clerk.User.
-func AuthorFromClerkUser(user *clerk.User) *Author {
-	var username string
-
-	if user.Username != nil {
-		username = *user.Username
-	}
-
-	return &Author{
-		ProfileImageURL: user.ProfileImageURL,
-		Username:        username,
-	}
+// StudySetWithAuthor represents final form of study set information.
+type StudySetWithAuthor struct {
+	Id                 int64  `json:"id"`
+	Author             Author `json:"author"`
+	Name               string `json:"name"`
+	Description        string `json:"description"`
+	PhraseLanguage     string `json:"phraseLanguage"`
+	DefinitionLanguage string `json:"definitionLanguage"`
 }
 
-// StudySet represents final form of study set information.
+// StudySet represents data stored in study set table.
 type StudySet struct {
-	Id                 int64   `json:"id"`
-	Author             *Author `json:"author"`
-	Name               string  `json:"name"`
-	Description        string  `json:"description"`
-	PhraseLanguage     string  `json:"phraseLanguage"`
-	DefinitionLanguage string  `json:"definitionLanguage"`
-}
-
-// StudySetRow represents data stored in study set table.
-type StudySetRow struct {
 	Id                 int64
-	AuthorId           string
 	Name               string
 	Description        string
 	PhraseLanguage     string
@@ -47,8 +31,8 @@ type StudySetRow struct {
 }
 
 // Populate populates study set information with that is not stored in study set table.
-func (r *StudySetRow) Populate(author *Author) *StudySet {
-	return &StudySet{
+func (r *StudySet) Populate(author Author) *StudySetWithAuthor {
+	return &StudySetWithAuthor{
 		Id:                 r.Id,
 		Author:             author,
 		Name:               r.Name,
@@ -75,9 +59,11 @@ type UpdateStudySetData struct {
 
 // StudySetRepo describes methods required by StudySetRepo implementation.
 type StudySetRepo interface {
-	GetAll(ctx context.Context) ([]*StudySetRow, error)
-	GetById(ctx context.Context, studySetID int64) (*StudySetRow, error)
-	Insert(ctx context.Context, insertData *InsertStudySetData) (*StudySetRow, error)
+	GetAll(ctx context.Context) ([]*StudySetWithAuthor, error)
+	GetById(ctx context.Context, studySetID int64) (*StudySetWithAuthor, error)
+	GetCreatedBy(ctx context.Context, userID string) ([]*StudySet, error)
+	GetStarredBy(ctx context.Context, userID string) ([]*StudySetWithAuthor, error)
+	Insert(ctx context.Context, insertData *InsertStudySetData) (int64, error)
 	Update(ctx context.Context, studySetID int64, updateData *UpdateStudySetData) error
 	Delete(ctx context.Context, studySetID int64) error
 	Exists(ctx context.Context, studySetID int64) (bool, error)
@@ -85,9 +71,9 @@ type StudySetRepo interface {
 
 // StudySetUseCase describes methods required by StudySetUseCase implementation.
 type StudySetUseCase interface {
-	GetAll(ctx context.Context) ([]*StudySet, error)
-	GetById(ctx context.Context, studySetID int64) (*StudySet, error)
-	Create(ctx context.Context, createData *InsertStudySetData) (*StudySet, error)
-	Update(ctx context.Context, studySetID int64, userID string, updateData *UpdateStudySetData) error
-	Delete(ctx context.Context, studySetID int64, userID string) error
+	GetAll(ctx context.Context) ([]*StudySetWithAuthor, error)
+	GetById(ctx context.Context, studySetID int64) (*StudySetWithAuthor, error)
+	Create(ctx context.Context, createData *InsertStudySetData) (int64, error)
+	Update(ctx context.Context, userID string, studySetID int64, updateData *UpdateStudySetData) error
+	Delete(ctx context.Context, userID string, studySetID int64) error
 }
