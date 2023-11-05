@@ -69,20 +69,12 @@ func (r *studySessionRepo) GetRecent(ctx context.Context, userID string) ([]*dom
 
 	for rows.Next() {
 		var studySession domain.StudySessionWithStudySet
-		var lastSessionAt sql.NullTime
 
 		if err := rows.Scan(
-			&lastSessionAt,
-			&studySession.StudySet.Id, &studySession.StudySet.Name, &studySession.StudySet.Description, &studySession.StudySet.PhraseLanguage, &studySession.StudySet.DefinitionLanguage,
+			&studySession.LastSessionAt, &studySession.StudySet.Id, &studySession.StudySet.Name, &studySession.StudySet.Description, &studySession.StudySet.PhraseLanguage, &studySession.StudySet.DefinitionLanguage,
 			&studySession.StudySet.Author.Id, &studySession.StudySet.Author.Username, &studySession.StudySet.Author.ImageURL,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan: %w", err)
-		}
-
-		if lastSessionAt.Valid {
-			studySession.LastSessionAt = &lastSessionAt.Time
-		} else {
-			studySession.LastSessionAt = nil
 		}
 
 		studySessions = append(studySessions, &studySession)
@@ -94,19 +86,12 @@ func (r *studySessionRepo) GetRecent(ctx context.Context, userID string) ([]*dom
 func (r *studySessionRepo) GetForStudySet(ctx context.Context, userID string, studySetID int64) (*domain.StudySession, error) {
 	row := r.db.QueryRowContext(ctx, getStudySessionForStudySet, userID, studySetID)
 
-	var lastSessionAt sql.NullTime
-	if err := row.Scan(&lastSessionAt); err != nil {
+	var studySession domain.StudySession
+	if err := row.Scan(&studySession.LastSessionAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("")
-	}
-
-	var studySession domain.StudySession
-	if lastSessionAt.Valid {
-		studySession.LastSessionAt = &lastSessionAt.Time
-	} else {
-		studySession.LastSessionAt = nil
 	}
 
 	return &studySession, nil
