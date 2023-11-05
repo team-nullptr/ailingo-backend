@@ -109,6 +109,7 @@ func Run(cfg *config.Config) {
 	definitionUseCase := usecase.NewDefinitionUseCase(mysqlDataStore, validate)
 	profileUseCase := usecase.NewProfileUseCase(mysqlDataStore, userService)
 	userUseCase := usecase.NewUserUseCase(mysqlDataStore)
+	studySessionUseCase := usecase.NewStudySessionUseCase(mysqlDataStore)
 
 	// Controllers
 	ai := controller.NewAiController(
@@ -124,7 +125,7 @@ func Run(cfg *config.Config) {
 		definitionUseCase,
 	)
 
-	me := controller.NewMeController(l, profileUseCase, userService)
+	me := controller.NewMeController(l, profileUseCase, studySessionUseCase, userService)
 
 	clerkWebhook, err := webhook.NewClerkWebhook(l, cfg, userUseCase)
 	if err != nil {

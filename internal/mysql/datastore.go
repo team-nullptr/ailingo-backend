@@ -38,6 +38,10 @@ func (ds *dataStore) GetUserRepo() domain.UserRepo {
 	return NewUserRepo(ds.db)
 }
 
+func (ds *dataStore) GetStudySessionRepo() domain.StudySessionRepo {
+	return NewStudySessionRepo(ds.db)
+}
+
 func (ds *dataStore) Atomic(ctx context.Context, cb func(ds domain.DataStore) error) error {
 	var err error
 

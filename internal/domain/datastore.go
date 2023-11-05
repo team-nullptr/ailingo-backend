@@ -10,4 +10,5 @@ type DataStore interface {
 	GetDefinitionRepo() DefinitionRepo
 	GetProfileRepo() ProfileRepo
 	GetUserRepo() UserRepo
+	GetStudySessionRepo() StudySessionRepo
 }

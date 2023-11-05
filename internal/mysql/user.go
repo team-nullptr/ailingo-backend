@@ -45,17 +45,17 @@ FROM user
 WHERE id = ?
 `
 
-type UserRepo struct {
+type userRepo struct {
 	db DBTX
 }
 
-func NewUserRepo(db DBTX) *UserRepo {
-	return &UserRepo{
+func NewUserRepo(db DBTX) domain.UserRepo {
+	return &userRepo{
 		db: db,
 	}
 }
 
-func (r *UserRepo) GetById(ctx context.Context, userID string) (*domain.UserRow, error) {
+func (r *userRepo) GetById(ctx context.Context, userID string) (*domain.UserRow, error) {
 	row := r.db.QueryRowContext(ctx, getUserById, userID)
 
 	var user domain.UserRow
@@ -66,28 +66,28 @@ func (r *UserRepo) GetById(ctx context.Context, userID string) (*domain.UserRow,
 	return &user, nil
 }
 
-func (r *UserRepo) Insert(ctx context.Context, insertData *domain.InsertUserData) error {
+func (r *userRepo) Insert(ctx context.Context, insertData *domain.InsertUserData) error {
 	if _, err := r.db.ExecContext(ctx, insertUser, insertData.Id, insertData.Username, insertData.ImageURL); err != nil {
 		return fmt.Errorf("failed to exec: %w", err)
 	}
 	return nil
 }
 
-func (r *UserRepo) Update(ctx context.Context, updateData *domain.UpdateUserData) error {
+func (r *userRepo) Update(ctx context.Context, updateData *domain.UpdateUserData) error {
 	if _, err := r.db.ExecContext(ctx, updateUserById, updateData.Username, updateData.ImageURL, updateData.Id); err != nil {
 		return fmt.Errorf("failed to exec: %w", err)
 	}
 	return nil
 }
 
-func (r *UserRepo) Delete(ctx context.Context, userID string) error {
+func (r *userRepo) Delete(ctx context.Context, userID string) error {
 	if _, err := r.db.ExecContext(ctx, deleteUserById, userID); err != nil {
 		return fmt.Errorf("failed to exec: %w", err)
 	}
 	return nil
 }
 
-func (r *UserRepo) SyncUsers(ctx context.Context, users []clerk.User) error {
+func (r *userRepo) SyncUsers(ctx context.Context, users []clerk.User) error {
 	stmt, err := r.db.PrepareContext(ctx, insertUser)
 	if err != nil {
 		return fmt.Errorf("failed to prepare insert stmt: %w", err)

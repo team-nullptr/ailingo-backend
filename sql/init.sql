@@ -35,9 +35,10 @@ CREATE TABLE study_session
 (
     `user_id`         VARCHAR(32) NOT NULL,
     `study_set_id`    INT         NOT NULL,
-    `last_session_at` DATETIME DEFAULT (NULL),
+    `last_session_at` DATETIME DEFAULT (NOW()),
 
-    INDEX (`user_id`(20))
+    INDEX (`user_id`(20)),
+    UNIQUE (`user_id`, `study_set_id`)
 );
 
 CREATE TABLE user

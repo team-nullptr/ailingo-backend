@@ -23,11 +23,11 @@ type StudySetWithAuthor struct {
 
 // StudySet represents data stored in study set table.
 type StudySet struct {
-	Id                 int64
-	Name               string
-	Description        string
-	PhraseLanguage     string
-	DefinitionLanguage string
+	Id                 int64  `json:"id"`
+	Name               string `json:"name"`
+	Description        string `json:"description"`
+	PhraseLanguage     string `json:"phraseLanguage"`
+	DefinitionLanguage string `json:"definitionLanguage"`
 }
 
 type InsertStudySetData struct {
