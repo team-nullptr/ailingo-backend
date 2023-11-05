@@ -63,7 +63,14 @@ func New(opts ...Option) *Server {
 	return server
 }
 
-func (s *Server) Start(certFile string, keyFile string) {
+func (s *Server) Start() {
+	go func() {
+		s.notify <- s.server.ListenAndServe()
+		close(s.notify)
+	}()
+}
+
+func (s *Server) StartTLS(certFile string, keyFile string) {
 	go func() {
 		s.notify <- s.server.ListenAndServeTLS(certFile, keyFile)
 		close(s.notify)

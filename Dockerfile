@@ -7,11 +7,7 @@ RUN go build ./cmd/api/main.go
 
 FROM alpine:3.14
 
-ARG TLS_CERT
-ARG TLS_KEY
-
 WORKDIR /runtime
-COPY $TLS_CERT $TLS_KEY ./certs/
 COPY --from=build /app/main ./
 EXPOSE ${PORT}
 CMD ["./main"]

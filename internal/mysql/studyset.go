@@ -90,6 +90,25 @@ const studySetExists = `
 SELECT EXISTS(SELECT 1 FROM study_set WHERE study_set.id = ?)
 `
 
+const deleteStudySetDefinitions = `
+DELETE
+FROM definition
+WHERE study_set_id = ?
+
+`
+
+const deleteStudySetStars = `
+DELETE 
+FROM star 
+WHERE study_set_id = ?
+`
+
+const deleteStudySetStudySessions = `
+DELETE 
+FROM study_session 
+WHERE study_set_id = ?
+`
+
 type studySetRepo struct {
 	db DBTX
 }
@@ -223,9 +242,24 @@ func (r *studySetRepo) Update(ctx context.Context, studySetID int64, updateData 
 }
 
 func (r *studySetRepo) Delete(ctx context.Context, studySetID int64) error {
+	// TODO: This could be split into separate repo functions and run with DataStore.Atomic
+
+	if _, err := r.db.ExecContext(ctx, deleteStudySetStars, studySetID); err != nil {
+		return fmt.Errorf("failed to exec: %w", err)
+	}
+
+	if _, err := r.db.ExecContext(ctx, deleteStudySetStudySessions, studySetID); err != nil {
+		return fmt.Errorf("failed to exec: %w", err)
+	}
+
+	if _, err := r.db.ExecContext(ctx, deleteStudySetDefinitions, studySetID); err != nil {
+		return fmt.Errorf("failed to exec: %w", err)
+	}
+
 	if _, err := r.db.ExecContext(ctx, deleteStudySet, studySetID); err != nil {
 		return fmt.Errorf("failed to exec: %w", err)
 	}
+
 	return nil
 }
 

@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/clerkinc/clerk-sdk-go/clerk"
+
 	"ailingo/internal/domain"
 )
 
@@ -24,7 +26,7 @@ WHERE id = ?
 
 // insertUser inserts a new user.
 const insertUser = `
-INSERT INTO user (id, username, image_url)
+INSERT IGNORE INTO user (id, username, image_url)
 VALUES (?, ?, ?)
 `
 
@@ -82,5 +84,20 @@ func (r *UserRepo) Delete(ctx context.Context, userID string) error {
 	if _, err := r.db.ExecContext(ctx, deleteUserById, userID); err != nil {
 		return fmt.Errorf("failed to exec: %w", err)
 	}
+	return nil
+}
+
+func (r *UserRepo) SyncUsers(ctx context.Context, users []clerk.User) error {
+	stmt, err := r.db.PrepareContext(ctx, insertUser)
+	if err != nil {
+		return fmt.Errorf("failed to prepare insert stmt: %w", err)
+	}
+
+	for _, user := range users {
+		if _, err := stmt.ExecContext(ctx, user.ID, user.Username, user.ImageURL); err != nil {
+			return fmt.Errorf("failed to insert a user: %w", err)
+		}
+	}
+
 	return nil
 }

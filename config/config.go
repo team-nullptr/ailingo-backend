@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -11,11 +12,17 @@ const (
 	EnvProd = "PROD"
 )
 
+var (
+	ErrInvalidValue = fmt.Errorf("invalid value")
+)
+
 type Server struct {
-	Env     string
-	Port    string
-	TlsCert string
-	TlsKey  string
+	Env                string
+	Port               string
+	UseTLS             bool
+	TLSCert            string
+	TLSKey             string
+	CorsAllowedOrigins []string
 }
 
 type Database struct {
@@ -38,7 +45,6 @@ type Config struct {
 
 // New loads Config, using .env as the config source, and returns it.
 func New(useDotenv bool) (*Config, error) {
-
 	if useDotenv {
 		if err := godotenv.Load(".env"); err != nil {
 			return nil, fmt.Errorf("failed to load .env: %w", err)
@@ -46,16 +52,27 @@ func New(useDotenv bool) (*Config, error) {
 	}
 
 	env := os.Getenv("ENV")
-	if env != "PROD" {
-		env = "DEV"
+	if env != "PROD" && env != "DEV" {
+		return nil, fmt.Errorf("%w: invalid value for ENV env variable", ErrInvalidValue)
+	}
+
+	var useTLS bool
+	if value := os.Getenv("USE_TLS"); value == "true" {
+		useTLS = true
+	} else if value == "false" {
+		useTLS = false
+	} else {
+		return nil, fmt.Errorf("%w: invalid value for USE_TLS env variable", ErrInvalidValue)
 	}
 
 	return &Config{
 		Server: Server{
-			Env:     env,
-			Port:    os.Getenv("PORT"),
-			TlsCert: os.Getenv("TLS_CERT"),
-			TlsKey:  os.Getenv("TLS_KEY"),
+			Env:                env,
+			Port:               os.Getenv("PORT"),
+			UseTLS:             useTLS,
+			TLSCert:            os.Getenv("TLS_CERT"),
+			TLSKey:             os.Getenv("TLS_KEY"),
+			CorsAllowedOrigins: parseOrigins(os.Getenv("CORS_ALLOWED_ORIGINS")),
 		},
 		Database: Database{
 			DSN: os.Getenv("DSN"),
@@ -67,4 +84,8 @@ func New(useDotenv bool) (*Config, error) {
 			DeepLToken:         os.Getenv("DEEPL_TOKEN"),
 		},
 	}, nil
+}
+
+func parseOrigins(origins string) []string {
+	return strings.Split(origins, ",")
 }

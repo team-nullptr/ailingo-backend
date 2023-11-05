@@ -7,9 +7,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - TLS_CERT=./certs/localhost.pem
-        - TLS_KEY=./certs/localhost-key.pem
+#      args:
+#        - TLS_CERT=./certs/localhost.pem
+#        - TLS_KEY=./certs/localhost-key.pem
     env_file:
       - .env
     ports:

@@ -19,8 +19,7 @@ CREATE TABLE definition
     `meaning`      VARCHAR(256)       NOT NULL,
     `sentences`    JSON               NOT NULL,
 
-    PRIMARY KEY (`id`),
-    FOREIGN KEY (`study_set_id`) REFERENCES study_set (`id`) ON DELETE CASCADE
+    PRIMARY KEY (`id`)
 );
 
 CREATE TABLE star
@@ -29,8 +28,7 @@ CREATE TABLE star
     `study_set_id` INT         NOT NULL,
 
     INDEX (`user_id`(20)),
-    UNIQUE (`user_id`, `study_set_id`),
-    FOREIGN KEY (`study_set_id`) REFERENCES study_set (`id`) ON DELETE CASCADE
+    UNIQUE (`user_id`, `study_set_id`)
 );
 
 CREATE TABLE study_session
@@ -39,8 +37,7 @@ CREATE TABLE study_session
     `study_set_id`    INT         NOT NULL,
     `last_session_at` DATETIME DEFAULT (NULL),
 
-    INDEX (`user_id`(20)),
-    FOREIGN KEY (`study_set_id`) REFERENCES study_set (`id`) ON DELETE CASCADE
+    INDEX (`user_id`(20))
 );
 
 CREATE TABLE user

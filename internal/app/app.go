@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log/slog"
@@ -18,6 +19,7 @@ import (
 
 	"ailingo/config"
 	"ailingo/internal/controller"
+	"ailingo/internal/domain"
 	"ailingo/internal/gpt"
 	"ailingo/internal/mysql"
 	"ailingo/internal/usecase"
@@ -68,6 +70,26 @@ func Run(cfg *config.Config) {
 
 	// Repos
 	mysqlDataStore := mysql.NewDataStore(db)
+
+	// TODO: This is stupid
+	if err := mysqlDataStore.Atomic(context.Background(), func(ds domain.DataStore) error {
+		users, err := clerkClient.Users().ListAll(clerk.ListAllUsersParams{})
+		if err != nil {
+			return fmt.Errorf("failed to list all users: %w", err)
+		}
+
+		if err := ds.GetUserRepo().SyncUsers(context.Background(), users); err != nil {
+			return fmt.Errorf("failed to sync users: %w", err)
+		}
+
+		return nil
+	}); err != nil {
+		l.Error(fmt.Sprintf("app - Run - user sync: %s", err))
+		os.Exit(1)
+	} else {
+		l.Info("Users have been successfully synced")
+	}
+
 	sentenceRepo := gpt.NewSentenceDevRepo()
 	if cfg.Server.Env == config.EnvProd {
 		sentenceRepo = gpt.NewSentenceRepo(openai.NewChatClient(cfg.Services.OpenAIToken))
@@ -124,7 +146,7 @@ func Run(cfg *config.Config) {
 	)
 
 	corsOpts := cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173"},
+		AllowedOrigins:   cfg.Server.CorsAllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
@@ -152,7 +174,11 @@ func Run(cfg *config.Config) {
 		httpserver.WithHandler(r),
 	)
 
-	server.Start(cfg.Server.TlsCert, cfg.Server.TlsKey)
+	if cfg.Server.UseTLS {
+		server.StartTLS(cfg.Server.TLSCert, cfg.Server.TLSKey)
+	} else {
+		server.Start()
+	}
 
 	// Interrupt signal
 	interrupt := make(chan os.Signal, 1)
