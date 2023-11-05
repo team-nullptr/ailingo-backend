@@ -13,7 +13,7 @@ import (
 func Json(l *slog.Logger, w http.ResponseWriter, status int, payload any) {
 	body, err := json.Marshal(payload)
 	if err != nil {
-		Err(l, w, ApiError{
+		Err(l, w, &ApiError{
 			Status: http.StatusInternalServerError,
 			Cause:  fmt.Errorf("failed to marshal response body: %w", err),
 		})
@@ -31,12 +31,10 @@ func Empty(w http.ResponseWriter, status int) {
 
 // Err is an API response helper for returning error responses.
 func Err(l *slog.Logger, w http.ResponseWriter, err error) {
-	var (
-		status       int
-		errorMessage string
-	)
+	var status int
+	var errorMessage string
 
-	var apiError ApiError
+	var apiError *ApiError
 	if errors.As(err, &apiError) {
 		if apiError.Cause != nil {
 			l.Warn(err.Error())

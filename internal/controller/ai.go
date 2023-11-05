@@ -38,7 +38,7 @@ func (c *AiController) GenerateSentence(w http.ResponseWriter, r *http.Request) 
 
 	var sentenceGenerationRequest domain.SentenceGenerationRequest
 	if err := json.NewDecoder(r.Body).Decode(&sentenceGenerationRequest); err != nil {
-		apiutil.Err(c.l, w, apiutil.ApiError{
+		apiutil.Err(c.l, w, &apiutil.ApiError{
 			Status:  http.StatusBadRequest,
 			Message: "Invalid sentence generation request payload",
 			Cause:   err,
@@ -49,7 +49,7 @@ func (c *AiController) GenerateSentence(w http.ResponseWriter, r *http.Request) 
 	generatedSentence, err := c.chatUseCase.GenerateSentence(ctx, &sentenceGenerationRequest)
 	if err != nil {
 		if errors.Is(err, usecase.ErrValidation) {
-			apiutil.Err(c.l, w, apiutil.ApiError{
+			apiutil.Err(c.l, w, &apiutil.ApiError{
 				Status:  http.StatusBadRequest,
 				Message: "Invalid request body",
 				Cause:   err,
@@ -71,7 +71,7 @@ func (c *AiController) Translate(w http.ResponseWriter, r *http.Request) {
 
 	var body domain.TranslateRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		apiutil.Err(c.l, w, apiutil.ApiError{
+		apiutil.Err(c.l, w, &apiutil.ApiError{
 			Status:  http.StatusBadRequest,
 			Message: "Invalid translation request payload",
 			Cause:   err,
@@ -82,7 +82,7 @@ func (c *AiController) Translate(w http.ResponseWriter, r *http.Request) {
 	t, err := c.translationUseCase.Translate(ctx, &body)
 	if err != nil {
 		if errors.Is(err, usecase.ErrValidation) {
-			apiutil.Err(c.l, w, apiutil.ApiError{
+			apiutil.Err(c.l, w, &apiutil.ApiError{
 				Status:  http.StatusBadRequest,
 				Message: "Invalid request body",
 				Cause:   err,

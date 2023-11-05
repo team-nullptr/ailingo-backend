@@ -44,7 +44,9 @@ func (uc *StudySetUseCase) GetById(ctx context.Context, studySetID int64) (*doma
 		return nil, fmt.Errorf("%w: failed to get the study set: %w", ErrRepoFailed, err)
 	}
 	if studySet == nil {
-		return nil, ErrNotFound
+		return nil, &ErrNotFound{
+			Resource: StudySetResource,
+		}
 	}
 
 	return studySet, nil
@@ -55,9 +57,7 @@ func (uc *StudySetUseCase) Create(ctx context.Context, insertData *domain.Insert
 		return 0, fmt.Errorf("%w: invalid insert data: %w", ErrValidation, err)
 	}
 
-	studySetRepo := uc.dataStore.GetStudySetRepo()
-
-	insertedId, err := studySetRepo.Insert(ctx, insertData)
+	insertedId, err := uc.dataStore.GetStudySetRepo().Insert(ctx, insertData)
 	if err != nil {
 		return 0, fmt.Errorf("%w: failed to create the study set: %w", ErrRepoFailed, err)
 	}
@@ -119,7 +119,9 @@ func (uc *StudySetUseCase) checkStudySetOwnership(ctx context.Context, studySetR
 		return fmt.Errorf("%w: failed to get the study set: %w", ErrRepoFailed, err)
 	}
 	if studySet == nil {
-		return ErrNotFound
+		return &ErrNotFound{
+			Resource: StudySetResource,
+		}
 	}
 	if studySet.Author.Id != userID {
 		return ErrForbidden

@@ -47,7 +47,7 @@ func (wh *ClerkWebhook) Webhook(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		apiutil.Err(wh.l, w, apiutil.ApiError{
+		apiutil.Err(wh.l, w, &apiutil.ApiError{
 			Status: http.StatusBadRequest,
 			Cause:  err,
 		})
@@ -55,7 +55,7 @@ func (wh *ClerkWebhook) Webhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := wh.wh.Verify(body, r.Header); err != nil {
-		apiutil.Err(wh.l, w, apiutil.ApiError{
+		apiutil.Err(wh.l, w, &apiutil.ApiError{
 			Status: http.StatusBadRequest,
 			Cause:  err,
 		})
@@ -64,7 +64,7 @@ func (wh *ClerkWebhook) Webhook(w http.ResponseWriter, r *http.Request) {
 
 	var ev event
 	if err := json.Unmarshal(body, &ev); err != nil {
-		apiutil.Err(wh.l, w, apiutil.ApiError{
+		apiutil.Err(wh.l, w, &apiutil.ApiError{
 			Status: http.StatusBadRequest,
 			Cause:  err,
 		})
@@ -90,7 +90,7 @@ type userCreatedEventData struct {
 func (wh *ClerkWebhook) userCreatedEventHandler(ctx context.Context, w http.ResponseWriter, eventDataRaw json.RawMessage) {
 	var eventData userCreatedEventData
 	if err := json.Unmarshal(eventDataRaw, &eventData); err != nil {
-		apiutil.Err(wh.l, w, apiutil.ApiError{
+		apiutil.Err(wh.l, w, &apiutil.ApiError{
 			Status: http.StatusBadRequest,
 			Cause:  err,
 		})
@@ -114,7 +114,7 @@ type userUpdatedEventData userCreatedEventData
 func (wh *ClerkWebhook) userUpdatedEventHandler(ctx context.Context, w http.ResponseWriter, eventDataRaw json.RawMessage) {
 	var eventData userUpdatedEventData
 	if err := json.Unmarshal(eventDataRaw, &eventData); err != nil {
-		apiutil.Err(wh.l, w, apiutil.ApiError{
+		apiutil.Err(wh.l, w, &apiutil.ApiError{
 			Status: http.StatusBadRequest,
 			Cause:  err,
 		})
@@ -140,7 +140,7 @@ type userDeletedEventData struct {
 func (wh *ClerkWebhook) userDeletedEventHandler(ctx context.Context, w http.ResponseWriter, eventDataRaw json.RawMessage) {
 	var eventData userDeletedEventData
 	if err := json.Unmarshal(eventDataRaw, &eventData); err != nil {
-		apiutil.Err(wh.l, w, apiutil.ApiError{
+		apiutil.Err(wh.l, w, &apiutil.ApiError{
 			Status: http.StatusBadRequest,
 			Cause:  err,
 		})

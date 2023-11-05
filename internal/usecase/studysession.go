@@ -60,7 +60,9 @@ func (uc *studySessionUseCase) Refresh(ctx context.Context, userID string, study
 				return fmt.Errorf("%w: failed to check if study set exists: %w", ErrRepoFailed, err)
 			}
 			if !studySetExists {
-				return ErrNotFound
+				return &ErrNotFound{
+					Resource: StudySetResource,
+				}
 			}
 			if err := studySessionRepo.Create(ctx, userID, studySetID); err != nil {
 				return fmt.Errorf("%w: failed to create a new study session: %w", ErrRepoFailed, err)

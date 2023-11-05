@@ -58,7 +58,9 @@ func (uc *ProfileUseCase) StarStudySet(ctx context.Context, userID string, study
 			return fmt.Errorf("%w: failed to check if parent study set exists: %w", ErrRepoFailed, err)
 		}
 		if !parentExists {
-			return ErrNotFound
+			return &ErrNotFound{
+				Resource: StudySetResource,
+			}
 		}
 
 		if err := profileRepo.InsertStar(ctx, userID, studySetID); err != nil {

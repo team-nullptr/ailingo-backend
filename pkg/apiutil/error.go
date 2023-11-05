@@ -12,7 +12,7 @@ type ApiError struct {
 	Cause   error
 }
 
-func (e ApiError) Error() string {
+func (e *ApiError) Error() string {
 	if e.Cause != nil {
 		return fmt.Sprintf("%s: %s", http.StatusText(e.Status), e.Cause.Error())
 	} else {
@@ -20,6 +20,6 @@ func (e ApiError) Error() string {
 	}
 }
 
-func (e ApiError) Unwrap() error {
+func (e *ApiError) Unwrap() error {
 	return e.Cause
 }

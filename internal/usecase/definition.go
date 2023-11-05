@@ -35,7 +35,9 @@ func (uc *DefinitionUseCase) GetAllFor(ctx context.Context, parentStudySetID int
 			return fmt.Errorf("%w: failed to check if parent study set exists: %w", ErrRepoFailed, err)
 		}
 		if !parentExists {
-			return ErrNotFound
+			return &ErrNotFound{
+				Resource: DefinitionResource,
+			}
 		}
 
 		definitionRows, err := definitionRepo.GetAllFor(ctx, parentStudySetID)
@@ -94,7 +96,6 @@ func (uc *DefinitionUseCase) Update(ctx context.Context, userID string, parentSt
 		studySetRepo := ds.GetStudySetRepo()
 		definitionRepo := ds.GetDefinitionRepo()
 
-		// TODO: In theory study set can be deleted between checking if it exists and deleting it's definition. Should we use transaction for that?
 		if err := uc.checkStudySetOwnership(ctx, studySetRepo, userID, parentStudySetID); err != nil {
 			return err
 		}
@@ -143,7 +144,9 @@ func (uc *DefinitionUseCase) checkStudySetOwnership(ctx context.Context, studySe
 		return fmt.Errorf("%w: failed to get the parent study set: %w", ErrRepoFailed, err)
 	}
 	if parentStudySet == nil {
-		return ErrNotFound
+		return &ErrNotFound{
+			Resource: StudySetResource,
+		}
 	}
 	if parentStudySet.Author.Id != userID {
 		return ErrForbidden

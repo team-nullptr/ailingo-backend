@@ -49,10 +49,9 @@ func (c *MeController) GetCreated(w http.ResponseWriter, r *http.Request) {
 	user, err := c.userService.GetUserFromContext(ctx)
 	if err != nil {
 		if errors.Is(err, auth.ErrNoClaims) {
-			apiutil.Err(c.l, w, apiutil.ApiError{
-				Status:  http.StatusUnauthorized,
-				Message: "Missing authorization",
-				Cause:   err,
+			apiutil.Err(c.l, w, &apiutil.ApiError{
+				Status: http.StatusUnauthorized,
+				Cause:  err,
 			})
 		} else {
 			apiutil.Err(c.l, w, err)
@@ -76,10 +75,9 @@ func (c *MeController) GetStarred(w http.ResponseWriter, r *http.Request) {
 	user, err := c.userService.GetUserFromContext(ctx)
 	if err != nil {
 		if errors.Is(err, auth.ErrNoClaims) {
-			apiutil.Err(c.l, w, apiutil.ApiError{
-				Status:  http.StatusUnauthorized,
-				Message: "Missing authorization",
-				Cause:   err,
+			apiutil.Err(c.l, w, &apiutil.ApiError{
+				Status: http.StatusUnauthorized,
+				Cause:  err,
 			})
 		} else {
 			apiutil.Err(c.l, w, err)
@@ -107,10 +105,9 @@ func (c *MeController) Star(w http.ResponseWriter, r *http.Request) {
 	user, err := c.userService.GetUserFromContext(ctx)
 	if err != nil {
 		if errors.Is(err, auth.ErrNoClaims) {
-			apiutil.Err(c.l, w, apiutil.ApiError{
-				Status:  http.StatusUnauthorized,
-				Message: "Missing authorization",
-				Cause:   err,
+			apiutil.Err(c.l, w, &apiutil.ApiError{
+				Status: http.StatusUnauthorized,
+				Cause:  err,
 			})
 		} else {
 			apiutil.Err(c.l, w, err)
@@ -120,7 +117,7 @@ func (c *MeController) Star(w http.ResponseWriter, r *http.Request) {
 
 	var body starPayload
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		apiutil.Err(c.l, w, apiutil.ApiError{
+		apiutil.Err(c.l, w, &apiutil.ApiError{
 			Status:  http.StatusBadRequest,
 			Message: "Invalid request body",
 			Cause:   err,
@@ -129,8 +126,12 @@ func (c *MeController) Star(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := c.profileUseCase.StarStudySet(ctx, user.ID, body.Id); err != nil {
-		if errors.Is(err, usecase.ErrNotFound) {
-			apiutil.Empty(w, http.StatusNotFound)
+		var errNotFound *usecase.ErrNotFound
+		if errors.As(err, &errNotFound) {
+			apiutil.Err(c.l, w, &apiutil.ApiError{
+				Status:  http.StatusNotFound,
+				Message: errNotFound.Error(),
+			})
 		} else if errors.Is(err, usecase.ErrAlreadyStarred) {
 			apiutil.Empty(w, http.StatusBadRequest)
 		} else {
@@ -149,10 +150,9 @@ func (c *MeController) Instar(w http.ResponseWriter, r *http.Request) {
 	user, err := c.userService.GetUserFromContext(ctx)
 	if err != nil {
 		if errors.Is(err, auth.ErrNoClaims) {
-			apiutil.Err(c.l, w, apiutil.ApiError{
-				Status:  http.StatusUnauthorized,
-				Message: "Missing authorization",
-				Cause:   err,
+			apiutil.Err(c.l, w, &apiutil.ApiError{
+				Status: http.StatusUnauthorized,
+				Cause:  err,
 			})
 		} else {
 			apiutil.Err(c.l, w, err)
@@ -162,7 +162,7 @@ func (c *MeController) Instar(w http.ResponseWriter, r *http.Request) {
 
 	studySetID, err := strconv.ParseInt(chi.URLParam(r, "studySetID"), 10, 64)
 	if err != nil {
-		apiutil.Err(c.l, w, apiutil.ApiError{
+		apiutil.Err(c.l, w, &apiutil.ApiError{
 			Status:  http.StatusBadRequest,
 			Message: "Invalid study set ID",
 		})
@@ -184,7 +184,7 @@ func (c *MeController) GetRecentStudySessions(w http.ResponseWriter, r *http.Req
 	user, err := c.userService.GetUserFromContext(ctx)
 	if err != nil {
 		if errors.Is(err, auth.ErrNoClaims) {
-			apiutil.Err(c.l, w, apiutil.ApiError{
+			apiutil.Err(c.l, w, &apiutil.ApiError{
 				Status:  http.StatusUnauthorized,
 				Message: "Missing authorization",
 				Cause:   err,
@@ -211,7 +211,7 @@ func (c *MeController) GetStudySessionForStudySet(w http.ResponseWriter, r *http
 	user, err := c.userService.GetUserFromContext(ctx)
 	if err != nil {
 		if errors.Is(err, auth.ErrNoClaims) {
-			apiutil.Err(c.l, w, apiutil.ApiError{
+			apiutil.Err(c.l, w, &apiutil.ApiError{
 				Status:  http.StatusUnauthorized,
 				Message: "Missing authorization",
 				Cause:   err,
@@ -224,7 +224,7 @@ func (c *MeController) GetStudySessionForStudySet(w http.ResponseWriter, r *http
 
 	studySetID, err := strconv.ParseInt(chi.URLParam(r, "studySetID"), 10, 64)
 	if err != nil {
-		apiutil.Err(c.l, w, apiutil.ApiError{
+		apiutil.Err(c.l, w, &apiutil.ApiError{
 			Status:  http.StatusBadRequest,
 			Message: "Invalid study set ID",
 		})
@@ -233,9 +233,12 @@ func (c *MeController) GetStudySessionForStudySet(w http.ResponseWriter, r *http
 
 	studySession, err := c.studySessionUseCase.GetForStudySet(ctx, user.ID, studySetID)
 	if err != nil {
-		if errors.Is(err, usecase.ErrNotFound) {
-			apiutil.Empty(w, http.StatusNotFound)
-			return
+		var errNotFound *usecase.ErrNotFound
+		if errors.As(err, &errNotFound) {
+			apiutil.Err(c.l, w, &apiutil.ApiError{
+				Status:  http.StatusNotFound,
+				Message: errNotFound.Error(),
+			})
 		} else {
 			apiutil.Err(c.l, w, err)
 		}
@@ -253,10 +256,9 @@ func (c *MeController) RefreshStudySession(w http.ResponseWriter, r *http.Reques
 	user, err := c.userService.GetUserFromContext(ctx)
 	if err != nil {
 		if errors.Is(err, auth.ErrNoClaims) {
-			apiutil.Err(c.l, w, apiutil.ApiError{
-				Status:  http.StatusUnauthorized,
-				Message: "Missing authorization",
-				Cause:   err,
+			apiutil.Err(c.l, w, &apiutil.ApiError{
+				Status: http.StatusUnauthorized,
+				Cause:  err,
 			})
 		} else {
 			apiutil.Err(c.l, w, err)
@@ -266,7 +268,7 @@ func (c *MeController) RefreshStudySession(w http.ResponseWriter, r *http.Reques
 
 	studySetID, err := strconv.ParseInt(chi.URLParam(r, "studySetID"), 10, 64)
 	if err != nil {
-		apiutil.Err(c.l, w, apiutil.ApiError{
+		apiutil.Err(c.l, w, &apiutil.ApiError{
 			Status:  http.StatusBadRequest,
 			Message: "Invalid study set ID",
 		})
@@ -274,8 +276,12 @@ func (c *MeController) RefreshStudySession(w http.ResponseWriter, r *http.Reques
 	}
 
 	if err := c.studySessionUseCase.Refresh(ctx, user.ID, studySetID); err != nil {
-		if errors.Is(err, usecase.ErrNotFound) {
-			apiutil.Empty(w, http.StatusNotFound)
+		var errNotFound *usecase.ErrNotFound
+		if errors.As(err, &errNotFound) {
+			apiutil.Err(c.l, w, &apiutil.ApiError{
+				Status:  http.StatusNotFound,
+				Message: errNotFound.Error(),
+			})
 		} else {
 			apiutil.Err(c.l, w, err)
 		}
