@@ -16,6 +16,8 @@ SELECT study_session.last_session_at,
        study_set.description,
        study_set.phrase_language,
        study_set.definition_language,
+       study_set.icon,
+       study_set.color,
        user.id,
        user.username,
        user.image_url
@@ -71,7 +73,7 @@ func (r *studySessionRepo) GetRecent(ctx context.Context, userID string) ([]*dom
 		var studySession domain.StudySessionWithStudySet
 
 		if err := rows.Scan(
-			&studySession.LastSessionAt, &studySession.StudySet.Id, &studySession.StudySet.Name, &studySession.StudySet.Description, &studySession.StudySet.PhraseLanguage, &studySession.StudySet.DefinitionLanguage,
+			&studySession.LastSessionAt, &studySession.StudySet.Id, &studySession.StudySet.Name, &studySession.StudySet.Description, &studySession.StudySet.PhraseLanguage, &studySession.StudySet.DefinitionLanguage, &studySession.StudySet.Icon, &studySession.StudySet.Color,
 			&studySession.StudySet.Author.Id, &studySession.StudySet.Author.Username, &studySession.StudySet.Author.ImageURL,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan: %w", err)

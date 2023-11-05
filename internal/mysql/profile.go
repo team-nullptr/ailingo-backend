@@ -11,7 +11,7 @@ import (
 )
 
 const insertStar = `
-INSERT INTO star (user_id, study_set_id) VALUE (?, ?)
+INSERT INTO star (user_id, study_set_id) VALUES (?, ?)
 `
 
 const deleteStar = `

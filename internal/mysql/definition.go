@@ -84,7 +84,7 @@ func (r *DefinitionRepo) Insert(ctx context.Context, parentStudySetID int64, ins
 		return fmt.Errorf("failed to marshal sentences array")
 	}
 
-	if _, err = r.db.ExecContext(ctx, insertDefinition, parentStudySetID, insertData.Phrase, insertData.Meaning, sentencesJson); err != nil {
+	if _, err = r.db.ExecContext(ctx, insertDefinition, parentStudySetID, insertData.Phrase, insertData.Meaning, string(sentencesJson)); err != nil {
 		return fmt.Errorf("failed to exec: %w", err)
 	}
 
@@ -97,7 +97,7 @@ func (r *DefinitionRepo) Update(ctx context.Context, definitionID int64, updateD
 		return fmt.Errorf("failed to marshal sentences array")
 	}
 
-	if _, err := r.db.ExecContext(ctx, updateDefinitionById, updateData.Phrase, updateData.Meaning, sentencesJson, definitionID); err != nil {
+	if _, err := r.db.ExecContext(ctx, updateDefinitionById, updateData.Phrase, updateData.Meaning, string(sentencesJson), definitionID); err != nil {
 		return fmt.Errorf("failed to update the definition: %w", err)
 	}
 

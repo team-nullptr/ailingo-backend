@@ -19,6 +19,8 @@ type StudySetWithAuthor struct {
 	Description        string `json:"description"`
 	PhraseLanguage     string `json:"phraseLanguage"`
 	DefinitionLanguage string `json:"definitionLanguage"`
+	Icon               string `json:"icon"`
+	Color              string `json:"color"`
 }
 
 // StudySet represents data stored in study set table.
@@ -28,6 +30,8 @@ type StudySet struct {
 	Description        string `json:"description"`
 	PhraseLanguage     string `json:"phraseLanguage"`
 	DefinitionLanguage string `json:"definitionLanguage"`
+	Icon               string `json:"icon"`
+	Color              string `json:"color"`
 }
 
 type InsertStudySetData struct {
@@ -36,6 +40,8 @@ type InsertStudySetData struct {
 	Description        string `json:"description" validate:"required,max=512"`
 	PhraseLanguage     string `json:"phraseLanguage" validate:"required,max=16"`
 	DefinitionLanguage string `json:"definitionLanguage" validate:"required,max=16"`
+	Icon               string `json:"icon" validate:"required,max=32"`
+	Color              string `json:"color" validate:"required,max=32"`
 }
 
 type UpdateStudySetData struct {
@@ -43,6 +49,8 @@ type UpdateStudySetData struct {
 	Description        string `json:"description" validate:"required,max=512"`
 	PhraseLanguage     string `json:"phraseLanguage" validate:"required,max=16"`
 	DefinitionLanguage string `json:"definitionLanguage" validate:"required,max=16"`
+	Icon               string `json:"icon" validate:"required,max=32"`
+	Color              string `json:"color" validate:"required,max=32"`
 }
 
 // StudySetRepo describes methods required by StudySetRepo implementation.

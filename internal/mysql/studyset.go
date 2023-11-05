@@ -16,6 +16,8 @@ SELECT study_set.id,
        study_set.description,
        study_set.phrase_language,
        study_set.definition_language,
+       study_set.icon,
+       study_set.color,
        user.id,
        user.username,
        user.image_url
@@ -25,7 +27,7 @@ FROM study_set
 
 // getStudySetsCreatedBy queries for all study sets created by the specified user.
 const getStudySetsCreatedBy = `
-SELECT id, name, description, phrase_language, definition_language
+SELECT id, name, description, phrase_language, definition_language, icon, color
 FROM study_set
 WHERE author_id = ?
 `
@@ -37,6 +39,8 @@ SELECT study_set.id,
        study_set.description,
        study_set.phrase_language,
        study_set.definition_language,
+       study_set.icon,
+       study_set.color,
        user.id,
        user.username,
        user.image_url
@@ -53,6 +57,8 @@ SELECT study_set.id,
        study_set.description,
        study_set.phrase_language,
        study_set.definition_language,
+       study_set.icon,
+       study_set.color,
        user.id,
        user.username,
        user.image_url
@@ -64,8 +70,8 @@ LIMIT 1
 
 // insertStudySets inserts a new study sets into the db.
 const insertStudySet = `
-INSERT INTO study_set (author_id, name, description, phrase_language, definition_language)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO study_set (author_id, name, description, phrase_language, definition_language, icon, color)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 `
 
 // updateStudySet updates the given study set.
@@ -74,7 +80,9 @@ UPDATE study_set
 SET name                = ?,
     description         = ?,
     phrase_language     = ?,
-    definition_language = ?
+    definition_language = ?,
+    icon = ?,
+    color = ?
 WHERE id = ?
 `
 
@@ -131,7 +139,7 @@ func (r *studySetRepo) GetAll(ctx context.Context) ([]*domain.StudySetWithAuthor
 		var studySet domain.StudySetWithAuthor
 		if err := rows.Scan(
 			// study set
-			&studySet.Id, &studySet.Name, &studySet.Description, &studySet.PhraseLanguage, &studySet.DefinitionLanguage,
+			&studySet.Id, &studySet.Name, &studySet.Description, &studySet.PhraseLanguage, &studySet.DefinitionLanguage, &studySet.Icon, &studySet.Color,
 			// author
 			&studySet.Author.Id, &studySet.Author.Username, &studySet.Author.ImageURL,
 		); err != nil {
@@ -148,7 +156,7 @@ func (r *studySetRepo) GetById(ctx context.Context, studySetID int64) (*domain.S
 
 	if err := r.db.QueryRowContext(ctx, getStudySetById, studySetID).Scan(
 		// study set
-		&studySet.Id, &studySet.Name, &studySet.Description, &studySet.PhraseLanguage, &studySet.DefinitionLanguage,
+		&studySet.Id, &studySet.Name, &studySet.Description, &studySet.PhraseLanguage, &studySet.DefinitionLanguage, &studySet.Icon, &studySet.Color,
 		// author
 		&studySet.Author.Id, &studySet.Author.Username, &studySet.Author.ImageURL,
 	); err != nil {
@@ -171,7 +179,7 @@ func (r *studySetRepo) GetCreatedBy(ctx context.Context, userID string) ([]*doma
 
 	for rows.Next() {
 		var studySet domain.StudySet
-		if err := rows.Scan(&studySet.Id, &studySet.Name, &studySet.Description, &studySet.PhraseLanguage, &studySet.DefinitionLanguage); err != nil {
+		if err := rows.Scan(&studySet.Id, &studySet.Name, &studySet.Description, &studySet.PhraseLanguage, &studySet.DefinitionLanguage, &studySet.Icon, &studySet.Color); err != nil {
 			return nil, fmt.Errorf("failed to scan: %w", err)
 		}
 		studySets = append(studySets, &studySet)
@@ -192,7 +200,7 @@ func (r *studySetRepo) GetStarredBy(ctx context.Context, userID string) ([]*doma
 		var studySet domain.StudySetWithAuthor
 		if err := rows.Scan(
 			// study set
-			&studySet.Id, &studySet.Name, &studySet.Description, &studySet.PhraseLanguage, &studySet.DefinitionLanguage,
+			&studySet.Id, &studySet.Name, &studySet.Description, &studySet.PhraseLanguage, &studySet.DefinitionLanguage, &studySet.Icon, &studySet.Color,
 			// author
 			&studySet.Author.Id, &studySet.Author.Username, &studySet.Author.ImageURL,
 		); err != nil {
@@ -213,6 +221,8 @@ func (r *studySetRepo) Insert(ctx context.Context, insertData *domain.InsertStud
 		insertData.Description,
 		insertData.PhraseLanguage,
 		insertData.DefinitionLanguage,
+		insertData.Icon,
+		insertData.Color,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("failed to exec: %w", err)
@@ -234,6 +244,8 @@ func (r *studySetRepo) Update(ctx context.Context, studySetID int64, updateData 
 		updateData.Description,
 		updateData.PhraseLanguage,
 		updateData.DefinitionLanguage,
+		updateData.Icon,
+		updateData.Color,
 		studySetID,
 	); err != nil {
 		return fmt.Errorf("failed to exec: %w", err)
