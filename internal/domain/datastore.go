@@ -11,4 +11,5 @@ type DataStore interface {
 	GetProfileRepo() ProfileRepo
 	GetUserRepo() UserRepo
 	GetStudySessionRepo() StudySessionRepo
+	GetTaskRepo() TaskRepo
 }

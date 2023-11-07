@@ -47,5 +47,17 @@ CREATE TABLE user
 (
 	`id`        VARCHAR(32) UNIQUE NOT NULL,
 	`username`  TEXT               NOT NULL,
-	`image_url` TEXT               NOT NULL
+	`image_url` TEXT               NOT NULL,
+	`tokens` INT NOT NULL DEFAULT 1000,
+
+	PRIMARY KEY(`id`)
+);
+
+CREATE TABLE task
+(
+	`id`     INT AUTO_INCREMENT NOT NULL,
+	`state`  ENUM ('PENDING', 'DONE', 'FAILED') DEFAULT 'PENDING',
+	`result` JSON                               DEFAULT NULL,
+
+	PRIMARY KEY (`id`)
 );

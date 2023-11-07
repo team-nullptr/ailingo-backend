@@ -35,6 +35,11 @@ func (uc *studySessionUseCase) GetForStudySet(ctx context.Context, userID string
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to get the study session: %w", ErrRepoFailed, err)
 	}
+	if studySession == nil {
+		return nil, &ErrNotFound{
+			Resource: StudySessionResource,
+		}
+	}
 
 	return studySession, nil
 }

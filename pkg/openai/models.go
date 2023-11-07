@@ -6,6 +6,10 @@ type Message struct {
 	Role    string `json:"role"`
 }
 
+type Usage struct {
+	TotalTokens int `json:"total_tokens"`
+}
+
 // CompletionChat represents completion chat settings.
 type CompletionChat struct {
 	Model     string    `json:"model"`
@@ -24,6 +28,7 @@ type Choice struct {
 type Completion struct {
 	Id      string   `json:"id"`
 	Choices []Choice `json:"choices"`
+	Usage   Usage    `json:"usage"`
 }
 
 // moderationRequest represents a payload provided to openai moderation API.

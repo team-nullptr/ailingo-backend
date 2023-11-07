@@ -45,6 +45,16 @@ FROM user
 WHERE id = ?
 `
 
+const chargeTokens = `
+UPDATE user
+SET tokens = tokens - ?
+WHERE id = ?
+`
+
+const getTokens = `
+SELECT tokens FROM user WHERE id = ?
+`
+
 type userRepo struct {
 	db DBTX
 }

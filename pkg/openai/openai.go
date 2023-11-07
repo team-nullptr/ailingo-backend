@@ -13,7 +13,7 @@ import (
 const openaiApiBase = "https://api.openai.com/v1"
 
 type ChatClient interface {
-	RequestCompletion(ctx context.Context, chat CompletionChat) (*Completion, error)
+	RequestCompletion(ctx context.Context, chat *CompletionChat) (*Completion, error)
 }
 
 type ChatClientImpl struct {
@@ -35,7 +35,7 @@ var (
 
 // RequestCompletion creates a new chat completion with the given chat configuration.
 // User's prompt will be filtered with moderation API. If any of the user messages will be flagged completion will fail with ErrModeration.
-func (c *ChatClientImpl) RequestCompletion(ctx context.Context, chat CompletionChat) (*Completion, error) {
+func (c *ChatClientImpl) RequestCompletion(ctx context.Context, chat *CompletionChat) (*Completion, error) {
 	for _, msg := range chat.Messages {
 		if msg.Role == "user" {
 			result, err := c.moderatePrompt(ctx, msg.Content)

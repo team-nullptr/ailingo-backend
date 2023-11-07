@@ -71,7 +71,7 @@ func Run(cfg *config.Config) {
 	// Repos
 	mysqlDataStore := mysql.NewDataStore(db)
 
-	// TODO: This is stupid
+	// TODO: yes
 	if err := mysqlDataStore.Atomic(context.Background(), func(ds domain.DataStore) error {
 		users, err := clerkClient.Users().ListAll(clerk.ListAllUsersParams{})
 		if err != nil {
@@ -90,26 +90,21 @@ func Run(cfg *config.Config) {
 		l.Info("Users have been successfully synced")
 	}
 
-	sentenceRepo := gpt.NewSentenceDevRepo()
-	if cfg.Server.Env == config.EnvProd {
-		sentenceRepo = gpt.NewSentenceRepo(openai.NewChatClient(cfg.Services.OpenAIToken))
-	}
+	// Services
+	gptService := gpt.NewService(openai.NewChatClient(cfg.Services.OpenAIToken))
 
 	// Validator
 	validate := validator.New(validator.WithRequiredStructEnabled())
 
 	// Use cases
-	translationUseCase := usecase.NewTranslateDevUseCase()
-	if cfg.Server.Env == config.EnvProd {
-		translationUseCase = usecase.NewTranslateUseCase(deepl.NewClient(cfg.Services.DeepLToken), validate)
-	}
-	chatUseCase := usecase.NewChatUseCase(sentenceRepo, validate)
-
+	translationUseCase := usecase.NewTranslateUseCase(deepl.NewClient(cfg.Services.DeepLToken), validate)
+	chatUseCase := usecase.NewChatUseCase(gptService, validate)
 	studySetUseCase := usecase.NewStudySetUseCase(mysqlDataStore, userService, validate)
-	definitionUseCase := usecase.NewDefinitionUseCase(mysqlDataStore, validate)
+	definitionUseCase := usecase.NewDefinitionUseCase(l, mysqlDataStore, gptService, validate)
 	profileUseCase := usecase.NewProfileUseCase(mysqlDataStore, userService)
 	userUseCase := usecase.NewUserUseCase(mysqlDataStore)
 	studySessionUseCase := usecase.NewStudySessionUseCase(mysqlDataStore)
+	taskUseCase := usecase.NewTaskUseCase(mysqlDataStore)
 
 	// Controllers
 	ai := controller.NewAiController(
@@ -126,6 +121,7 @@ func Run(cfg *config.Config) {
 	)
 
 	me := controller.NewMeController(l, profileUseCase, studySessionUseCase, userService)
+	task := controller.NewTaskController(l, userService, taskUseCase)
 
 	clerkWebhook, err := webhook.NewClerkWebhook(l, cfg, userUseCase)
 	if err != nil {
@@ -140,29 +136,32 @@ func Run(cfg *config.Config) {
 		TimeFieldName: "time",
 	}))
 
-	limiter := httprate.Limit(
-		10,
-		10*time.Second,
-		httprate.WithKeyFuncs(httprate.KeyByIP, httprate.KeyByEndpoint),
-	)
-
 	corsOpts := cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.Server.CorsAllowedOrigins,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
 	})
 
 	r := chi.NewRouter()
+
 	r.Use(
-		limiter,
 		reqLogger,
 		corsOpts,
 	)
 
-	r.Route("/study-sets", studySet.Router(withClaims))
+	r.Route("/", func(r chi.Router) {
+		r.Use(httprate.Limit(
+			15,
+			10*time.Second,
+			httprate.WithKeyFuncs(httprate.KeyByIP, httprate.KeyByEndpoint),
+		))
+		r.Route("/study-sets", studySet.Router(withClaims))
+		r.With(withClaims).Route("/me", me.Router)
+		r.With(withClaims).Route("/task", task.Router)
+	})
+
 	r.With(withClaims).Route("/ai", ai.Router)
-	r.With(withClaims).Route("/me", me.Router)
 
 	// Webhooks
 	r.Post("/clerk/webhook", clerkWebhook.Webhook)
@@ -171,7 +170,7 @@ func Run(cfg *config.Config) {
 	server := httpserver.New(
 		httpserver.WithAddr(fmt.Sprintf(":%s", cfg.Server.Port)),
 		httpserver.WithReadTimeout(5*time.Second),
-		httpserver.WithWriteTimeout(10*time.Second),
+		httpserver.WithWriteTimeout(20*time.Second),
 		httpserver.WithHandler(r),
 	)
 

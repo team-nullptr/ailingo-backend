@@ -45,6 +45,7 @@ func (c *StudySetController) Router(withClaims func(next http.Handler) http.Hand
 
 			// TODO: We could make a separate controller for /definitions endpoints
 			r.Post("/{parentStudySetID}/definitions", c.CreateDefinition)
+			r.Post("/{parentStudySetID}/definitions/fill", c.AIFill)
 			r.Put("/{parentStudySetID}/definitions/{definitionID}", c.UpdateDefinition)
 			r.Delete("/{parentStudySetID}/definitions/{definitionID}", c.DeleteDefinition)
 		})
@@ -275,6 +276,49 @@ func (c *StudySetController) GetDefinitions(w http.ResponseWriter, r *http.Reque
 	}
 
 	apiutil.Json(c.l, w, http.StatusOK, definitions)
+}
+
+func (c *StudySetController) AIFill(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	user, err := c.userService.GetUserFromContext(ctx)
+	if err != nil {
+		if errors.Is(err, auth.ErrNoClaims) {
+			apiutil.Err(c.l, w, &apiutil.ApiError{
+				Status: http.StatusUnauthorized,
+				Cause:  err,
+			})
+		} else {
+			apiutil.Err(c.l, w, err)
+		}
+	}
+
+	parentStudySetID, err := strconv.ParseInt(chi.URLParam(r, "parentStudySetID"), 10, 64)
+	if err != nil {
+		apiutil.Err(c.l, w, &apiutil.ApiError{
+			Status:  http.StatusBadRequest,
+			Message: "Invalid study set ID",
+		})
+		return
+	}
+
+	taskId, err := c.definitionUseCase.AiFill(ctx, user.ID, parentStudySetID)
+	if err != nil {
+		var errNotFound *usecase.ErrNotFound
+		if errors.As(err, &errNotFound) {
+			apiutil.Err(c.l, w, &apiutil.ApiError{
+				Status:  http.StatusNotFound,
+				Message: errNotFound.Error(),
+			})
+		} else {
+			apiutil.Err(c.l, w, err)
+		}
+		return
+	}
+
+	apiutil.Json(c.l, w, http.StatusAccepted, map[string]int64{
+		"taskId": taskId,
+	})
 }
 
 // CreateDefinition is an endpoint handler for creating a new definitions for a specific study set.

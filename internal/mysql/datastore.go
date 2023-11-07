@@ -42,6 +42,10 @@ func (ds *dataStore) GetStudySessionRepo() domain.StudySessionRepo {
 	return NewStudySessionRepo(ds.db)
 }
 
+func (ds *dataStore) GetTaskRepo() domain.TaskRepo {
+	return NewTaskRepo(ds.db)
+}
+
 func (ds *dataStore) Atomic(ctx context.Context, cb func(ds domain.DataStore) error) error {
 	var err error
 

@@ -44,4 +44,5 @@ type DefinitionUseCase interface {
 	Create(ctx context.Context, userID string, parentStudySetID int64, insertData *InsertDefinitionData) error
 	Update(ctx context.Context, userID string, parentStudySetID int64, definitionID int64, updateData *UpdateDefinitionData) error
 	Delete(ctx context.Context, userID string, parentStudySetID int64, definitionID int64) error
+	AiFill(ctx context.Context, userID string, parentStudySetID int64) (int64, error)
 }

@@ -17,7 +17,6 @@ var (
 )
 
 type Server struct {
-	Env                string
 	Port               string
 	UseTLS             bool
 	TLSCert            string
@@ -51,11 +50,6 @@ func New(useDotenv bool) (*Config, error) {
 		}
 	}
 
-	env := os.Getenv("ENV")
-	if env != "PROD" && env != "DEV" {
-		return nil, fmt.Errorf("%w: invalid value for ENV env variable", ErrInvalidValue)
-	}
-
 	var useTLS bool
 	if value := os.Getenv("USE_TLS"); value == "true" {
 		useTLS = true
@@ -67,7 +61,6 @@ func New(useDotenv bool) (*Config, error) {
 
 	return &Config{
 		Server: Server{
-			Env:                env,
 			Port:               os.Getenv("PORT"),
 			UseTLS:             useTLS,
 			TLSCert:            os.Getenv("TLS_CERT"),

@@ -7,6 +7,8 @@ import (
 
 const StudySetResource = "study_set"
 const DefinitionResource = "definition"
+const TaskResource = "task"
+const StudySessionResource = "study_session"
 
 // ErrNotFound means that resource was not found.
 type ErrNotFound struct {

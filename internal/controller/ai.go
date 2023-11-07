@@ -5,8 +5,10 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/httprate"
 
 	"ailingo/internal/domain"
 	"ailingo/internal/usecase"
@@ -28,6 +30,11 @@ func NewAiController(l *slog.Logger, chatUseCase domain.ChatUseCase, translation
 }
 
 func (c *AiController) Router(r chi.Router) {
+	r.Use(httprate.Limit(
+		10,
+		time.Minute,
+		httprate.WithKeyFuncs(httprate.KeyByIP, httprate.KeyByEndpoint),
+	))
 	r.Post("/sentence", c.GenerateSentence)
 	r.Post("/translate", c.Translate)
 }
