@@ -71,11 +71,11 @@ func (s *service) GenerateSentence(ctx context.Context, req *domain.SentenceGene
 	if err = json.Unmarshal([]byte(completion.Choices[0].Message.Content), &result); err != nil {
 		return "", fmt.Errorf("%w: %w", ErrModelDelusions, err)
 	}
-	if result.Success {
-		return result.Sentence, nil
+	if !result.Success {
+		return "", fmt.Errorf("%w: %s", ErrGenerationUnsuccessful, result.Reason)
 	}
 
-	return "", fmt.Errorf("%w: %s", ErrGenerationUnsuccessful, result.Reason)
+	return result.Sentence, nil
 }
 
 // sentenceGeneratorSystem is a prompt for sentence generator persona.
@@ -99,7 +99,7 @@ func (s *service) GenerateDefinitions(ctx context.Context, req *domain.SetGenera
 			},
 			{
 				Role:    "user",
-				Content: fmt.Sprintf("word set title: \"%s\"", req.Name),
+				Content: fmt.Sprintf("word_set_title: \"%s\"", req.Name),
 			},
 		},
 		MaxTokens: 1024,
