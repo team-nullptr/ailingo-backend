@@ -25,7 +25,7 @@ FROM study_session
 	     INNER JOIN study_set ON study_session.study_set_id = study_set.id
 	     INNER JOIN user ON study_set.author_id = user.id
 WHERE study_session.user_id = ?
-ORDER BY study_session.last_session_at
+ORDER BY study_session.last_session_at DESC 
 `
 
 const getStudySessionForStudySet = `
